@@ -1,193 +1,106 @@
-use wgpu_bootstrap::{Window, Renderable, State};
+use wgpu_bootstrap::{window::Window, frame::Frame};
 
-struct Frame<'a> {
-    output: wgpu::SurfaceTexture,
-    view: wgpu::TextureView,
-    encoder: wgpu::CommandEncoder,
-    queue: &'a wgpu::Queue,
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
-impl<'a> Frame<'a> {
-    fn new(state: &'a State) -> Result<Self, wgpu::SurfaceError> {
-        let output = state.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let encoder = state
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-        Ok(Self {
-            output,
-            view,
-            encoder,
-            queue: &state.queue
-        })
-    }
-
-    fn begin_render_pass(&mut self) -> wgpu::RenderPass {
-        self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.1,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0,
-                    }),
-                    store: true,
+impl Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
-            })],
-            depth_stencil_attachment: None,
-        })
-    }
-
-    fn present(self) {
-        self.queue.submit(std::iter::once(self.encoder.finish()));
-        self.output.present();
-    }
-}
-
-fn render_pass<F>(state: &State, mut f: &F) -> Result<(), wgpu::SurfaceError>
-where F: FnOnce(&State, &mut wgpu::RenderPass)
-{
-    let output = state.surface.get_current_texture()?;
-    let view = output
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
-
-    let mut encoder = state
-        .device
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
-        });
-
-    {
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.1,
-                        g: 0.2,
-                        b: 0.3,
-                        a: 1.0,
-                    }),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        //render_pass.set_pipeline(&self.pipeline);
-        //render_pass.draw(0..3, 0..1);
-        //f(state, &mut render_pass);
-    }
-
-    state.queue.submit(std::iter::once(encoder.finish()));
-    output.present();
-
-    Ok(())
-}
-
-struct App {
-    pipeline: wgpu::RenderPipeline
-}
-
-impl App {
-    fn new(state: &State) -> Self {
-        let shader = state.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
-
-        let render_pipeline_layout =
-            state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = state.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: state.config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent::REPLACE,
-                        alpha: wgpu::BlendComponent::REPLACE,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                // or Features::POLYGON_MODE_POINT
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            // If the pipeline will be used with a multiview render pass, this
-            // indicates how many array layers the attachments will have.
-            multiview: None,
-        });
-
-        Self {
-            pipeline: render_pipeline
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                }
+            ]
         }
     }
 }
 
-impl Renderable for App {
-    fn render(&mut self, state: &State) -> Result<(), wgpu::SurfaceError> {
+const VERTICES: &[Vertex] = &[
+    Vertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
+    Vertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
+    Vertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], },
+    Vertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], },
+    Vertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], },
+];
 
-        let mut frame = Frame::new(state)?;
+const INDICES: &[u16] = &[
+    0, 1, 4,
+    1, 2, 4,
+    2, 3, 4,
+];
+
+fn main() {
+    let window = Window::new();
+
+    let context = window.get_context();
+
+    let texture = context.create_texture("happy-tree.png", include_bytes!("happy-tree.png"));
+
+    let texture_bind_group_layout =context.create_bind_group_layout( "Bind Group Layout", &[
+        wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                multisampled: false,
+                view_dimension: wgpu::TextureViewDimension::D2,
+                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 1,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            // This should match the filterable field of the
+            // corresponding Texture entry above.
+            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+            count: None,
+        },
+    ]);
+
+    let diffuse_bind_group = context.create_bind_group("Bind Group", &texture_bind_group_layout, &[
+        wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::TextureView(&texture.view),
+        },
+        wgpu::BindGroupEntry {
+            binding: 1,
+            resource: wgpu::BindingResource::Sampler(&texture.sampler),
+        }
+    ]);
+
+    let pipeline = context.create_render_pipeline("Render Pipeline", include_str!("shader.wgsl"), Vertex::desc(), &[&texture_bind_group_layout]);
+
+    let vertex_buffer = context.create_buffer(VERTICES, wgpu::BufferUsages::VERTEX);
+    let index_buffer = context.create_buffer(INDICES, wgpu::BufferUsages::INDEX);
+    
+    window.run(move |context| {
+        let mut frame = Frame::new(context)?;
 
         {
             let mut render_pass = frame.begin_render_pass();
 
-            render_pass.set_pipeline(&self.pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_pipeline(&pipeline);
+            render_pass.set_bind_group(0, &diffuse_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..(INDICES.len() as u32), 0, 0..1);
         }
 
         frame.present();
 
         Ok(())
-    }
-}
-
-fn main() {
-    let window = Window::new();
-
-    let app = App::new(window.get_state());
-
-    window.run(app);
+    });
 }
