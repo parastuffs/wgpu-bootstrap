@@ -148,6 +148,12 @@ impl Context {
         )
     }
 
+    pub fn update_buffer<T>(&self, buffer: &wgpu::Buffer, data: &[T])
+    where T: Pod
+    {
+        self.queue.write_buffer(buffer, 0, bytemuck::cast_slice(data));
+    }
+
     pub fn create_texture(&self, label: &str, bytes: &[u8]) -> Texture {
         Texture::from_bytes(&self.device, &self.queue, bytes, label).unwrap()
     }

@@ -3,7 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window as WinitWindow, WindowBuilder},
 };
-use crate::context::Context;
+use crate::{context::Context, application::{self, Application}};
 
 pub struct Window {
     event_loop: EventLoop<()>,
@@ -26,8 +26,8 @@ impl Window {
         }
     }
 
-    pub fn run<F>(self, mut render: F)
-    where F: FnMut(&Context) -> Result<(), wgpu::SurfaceError> + 'static
+    pub fn run<T>(mut self, mut application: T)
+    where T: Application + 'static
     {
         let window = self.window;
         let mut context = self.context;
@@ -37,7 +37,7 @@ impl Window {
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
-                    if true {
+                    if !application.input(&event, &context) {
                         match event {
                             WindowEvent::CloseRequested
                             | WindowEvent::KeyboardInput {
@@ -61,7 +61,8 @@ impl Window {
                     }
                 }
                 Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    match render(&context) {
+                    application.update(&context);
+                    match application.render(&context) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
                         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => context.resize(context.size),
