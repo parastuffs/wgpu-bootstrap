@@ -1,10 +1,11 @@
-use crate::context::Context;
+use crate::{context::Context, texture::Texture};
 
 pub struct Frame<'a> {
     output: wgpu::SurfaceTexture,
     view: wgpu::TextureView,
     encoder: wgpu::CommandEncoder,
     queue: &'a wgpu::Queue,
+    depth_texture: &'a Texture,
 }
 
 impl<'a> Frame<'a> {
@@ -24,7 +25,8 @@ impl<'a> Frame<'a> {
             output,
             view,
             encoder,
-            queue: &context.queue
+            queue: &context.queue,
+            depth_texture: &context.depth_texture,
         })
     }
 
@@ -44,7 +46,14 @@ impl<'a> Frame<'a> {
                     store: true,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
         })
     }
 

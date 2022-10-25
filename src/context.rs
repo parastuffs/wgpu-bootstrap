@@ -11,6 +11,7 @@ pub struct Context {
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    pub depth_texture: Texture,
 }
 
 impl Context {
@@ -58,12 +59,15 @@ impl Context {
         };
         surface.configure(&device, &config);
 
+        let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
+
         Self {
             surface,
             device,
             queue,
             size,
             config,
+            depth_texture,
         }
     }
 
@@ -74,6 +78,8 @@ impl Context {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
+
+        self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
     pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layout: wgpu::VertexBufferLayout, bind_group_layouts: &[&wgpu::BindGroupLayout]) -> wgpu::RenderPipeline {
@@ -124,7 +130,13 @@ impl Context {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: Texture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less, // 1.
+                stencil: wgpu::StencilState::default(), // 2.
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
