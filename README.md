@@ -1,3 +1,3 @@
-# WGPU Boostrap
+# WGPU Bootstrap
 
 Coming Soon
