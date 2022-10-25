@@ -6,7 +6,8 @@ use wgpu_bootstrap::{
     texture::create_simple_texture_bind_group,
     context::Context,
     camera::Camera,
-    default::SimpleVertex
+    default::SimpleVertex,
+    wgpu,
 };
 
 const VERTICES: &[SimpleVertex] = &[
