@@ -3,7 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window as WinitWindow, WindowBuilder},
 };
-use crate::{context::Context, application::{self, Application}};
+use crate::{context::Context, application::Application};
 
 pub struct Window {
     event_loop: EventLoop<()>,
@@ -26,7 +26,7 @@ impl Window {
         }
     }
 
-    pub fn run<T>(mut self, mut application: T)
+    pub fn run<T>(self, mut application: T)
     where T: Application + 'static
     {
         let window = self.window;
