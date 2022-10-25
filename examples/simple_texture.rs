@@ -41,7 +41,7 @@ impl MyApp {
             eye: (0.0, 1.0, 2.0).into(),
             target: (0.0, 0.0, 0.0).into(),
             up: cgmath::Vector3::unit_y(),
-            aspect: context.config.width as f32 / context.config.height as f32,
+            aspect: context.get_aspect_ratio(),
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
