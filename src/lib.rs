@@ -8,7 +8,7 @@ pub mod camera;
 pub extern crate wgpu;
 pub extern crate winit;
 pub extern crate cgmath;
-pub extern crate bytemuck;
+pub use bytemuck;
 
 
 
