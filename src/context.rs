@@ -82,7 +82,7 @@ impl Context {
         self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
-    pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layout: wgpu::VertexBufferLayout, bind_group_layouts: &[&wgpu::BindGroupLayout]) -> wgpu::RenderPipeline {
+    pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layouts: &[wgpu::VertexBufferLayout], bind_group_layouts: &[&wgpu::BindGroupLayout]) -> wgpu::RenderPipeline {
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(format!("{} Shader", label).as_str()),
             source: wgpu::ShaderSource::Wgsl(source.into()),
@@ -101,9 +101,7 @@ impl Context {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[
-                    vertex_buffer_layout
-                ],
+                buffers: vertex_buffer_layouts,
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
