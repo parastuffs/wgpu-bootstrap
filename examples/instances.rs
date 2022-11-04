@@ -10,6 +10,9 @@ use wgpu_bootstrap::{
     wgpu,
 };
 
+const NUM_INSTANCES_PER_ROW: u32 = 10;
+const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
+
 const VERTICES: &[SimpleVertex] = &[
     SimpleVertex { position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], },
     SimpleVertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], },
@@ -59,9 +62,6 @@ impl MyApp {
     
         let vertex_buffer = context.create_buffer(VERTICES, wgpu::BufferUsages::VERTEX);
         let index_buffer = context.create_buffer(INDICES, wgpu::BufferUsages::INDEX);
-
-        let NUM_INSTANCES_PER_ROW = 10;
-        let INSTANCE_DISPLACEMENT = cgmath::Vector3::new(NUM_INSTANCES_PER_ROW as f32 * 0.5, 0.0, NUM_INSTANCES_PER_ROW as f32 * 0.5);
 
         let instances = (0..NUM_INSTANCES_PER_ROW*NUM_INSTANCES_PER_ROW).map(|index| {
             let x = index % NUM_INSTANCES_PER_ROW;
