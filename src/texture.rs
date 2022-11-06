@@ -118,30 +118,10 @@ impl Texture {
     }
 }
 
-pub fn create_simple_texture_bind_group(context: &Context, texture: &Texture) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+pub fn create_texture_bind_group(context: &Context, texture: &Texture) -> wgpu::BindGroup {
     let label = texture.label.as_str();
-    let bind_group_layout = context.create_bind_group_layout(format!("{} Bind Group Layout", label).as_str(), &[
-        wgpu::BindGroupLayoutEntry {
-            binding: 0,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Texture {
-                multisampled: false,
-                view_dimension: wgpu::TextureViewDimension::D2,
-                sample_type: wgpu::TextureSampleType::Float { filterable: true },
-            },
-            count: None,
-        },
-        wgpu::BindGroupLayoutEntry {
-            binding: 1,
-            visibility: wgpu::ShaderStages::FRAGMENT,
-            // This should match the filterable field of the
-            // corresponding Texture entry above.
-            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-            count: None,
-        },
-    ]);
 
-    let bind_group = context.create_bind_group(format!("{} Bind Group", label).as_str(), &bind_group_layout, &[
+    let bind_group = context.create_bind_group(format!("{} Bind Group", label).as_str(), &context.texture_bind_group_layout, &[
         wgpu::BindGroupEntry {
             binding: 0,
             resource: wgpu::BindingResource::TextureView(&texture.view),
@@ -152,6 +132,6 @@ pub fn create_simple_texture_bind_group(context: &Context, texture: &Texture) ->
         }
     ]);
 
-    (bind_group_layout, bind_group)
+    bind_group
 }
 

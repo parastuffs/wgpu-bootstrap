@@ -3,7 +3,7 @@ use wgpu_bootstrap::{
     frame::Frame,
     cgmath::prelude::*,
     application::Application,
-    texture::create_simple_texture_bind_group,
+    texture::create_texture_bind_group,
     context::Context,
     camera::Camera,
     default::{ SimpleVertex, Instance, InstanceRaw },
@@ -41,7 +41,7 @@ impl MyApp {
     fn new(context: &Context) -> Self {
         let texture = context.create_texture("happy-tree.png", include_bytes!("happy-tree.png"));
     
-        let (texture_bind_group_layout, diffuse_bind_group) = create_simple_texture_bind_group(context, &texture);
+        let diffuse_bind_group = create_texture_bind_group(context, &texture);
     
         let camera = Camera {
             eye: (0.0, 10.0, 15.0).into(),
@@ -53,11 +53,11 @@ impl MyApp {
             zfar: 100.0,
         };
 
-        let (_camera_buffer, camera_bind_group_layout, camera_bind_group) = camera.create_camera_bind_group(context);
+        let (_camera_buffer, camera_bind_group) = camera.create_camera_bind_group(context);
     
         let pipeline = context.create_render_pipeline("Render Pipeline", include_str!("shader_instances.wgsl"), &[SimpleVertex::desc(), InstanceRaw::desc()], &[
-            &texture_bind_group_layout,
-            &camera_bind_group_layout,
+            &context.texture_bind_group_layout,
+            &context.camera_bind_group_layout,
         ]);
     
         let vertex_buffer = context.create_buffer(VERTICES, wgpu::BufferUsages::VERTEX);

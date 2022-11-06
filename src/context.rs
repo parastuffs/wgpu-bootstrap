@@ -5,6 +5,13 @@ use crate::texture::Texture;
 use bytemuck::Pod;
 use wgpu::util::DeviceExt;
 
+fn create_bind_group_layout(device: &wgpu::Device, label:&str, bind_group_layout_entries: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        entries: bind_group_layout_entries,
+        label: Some(label),
+    })
+}
+
 pub struct Context {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -12,6 +19,8 @@ pub struct Context {
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub depth_texture: Texture,
+    pub camera_bind_group_layout: wgpu::BindGroupLayout,
+    pub texture_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl Context {
@@ -61,6 +70,41 @@ impl Context {
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
+        let camera_bind_group_layout = create_bind_group_layout(&device, "Camera Bind Group Layout", &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }
+        ]);
+
+
+        let texture_bind_group_layout = create_bind_group_layout(&device, "Texture Bind Group Layout", &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    multisampled: false,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                // This should match the filterable field of the
+                // corresponding Texture entry above.
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ]);
+
         Self {
             surface,
             device,
@@ -68,6 +112,8 @@ impl Context {
             size,
             config,
             depth_texture,
+            camera_bind_group_layout,
+            texture_bind_group_layout,
         }
     }
 
@@ -169,10 +215,7 @@ impl Context {
     }
 
     pub fn create_bind_group_layout(&self, label:&str, bind_group_layout_entries: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {
-        self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: bind_group_layout_entries,
-            label: Some(label),
-        })
+        create_bind_group_layout(&self.device, label, bind_group_layout_entries)
     }
 
     pub fn create_bind_group(&self, label: &str, bind_group_layout: &wgpu::BindGroupLayout, bind_group_entries: &[wgpu::BindGroupEntry]) -> wgpu::BindGroup {

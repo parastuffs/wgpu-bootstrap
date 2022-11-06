@@ -62,30 +62,17 @@ impl Camera {
         ])
     }
 
-    pub fn create_camera_bind_group(&self, context: &Context) -> (wgpu::Buffer, wgpu::BindGroupLayout, wgpu::BindGroup) {
+    pub fn create_camera_bind_group(&self, context: &Context) -> (wgpu::Buffer, wgpu::BindGroup) {
         let camera_buffer = self.create_camera_buffer(context);
         
-        let bind_group_layout = context.create_bind_group_layout("Camera Bind Group Layout", &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }
-        ]);
-
-        let bind_group = context.create_bind_group("Matrix Bind Group", &bind_group_layout, &[
+        let bind_group = context.create_bind_group("Matrix Bind Group", &context.camera_bind_group_layout, &[
             wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }
         ]);
 
-        (camera_buffer, bind_group_layout, bind_group)
+        (camera_buffer, bind_group)
     }
 
     pub fn update_camera_buffer(&self, camera_buffer: &wgpu::Buffer, context: &Context) {
