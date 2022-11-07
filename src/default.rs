@@ -1,3 +1,7 @@
+use std::f32::consts::PI;
+
+use cgmath::prelude::*;
+
 // We need this for Rust to store our data correctly for the shaders
 #[repr(C)]
 // This is so we can store this in a buffer
@@ -131,4 +135,40 @@ impl InstanceRaw {
             ],
         }
     }
+}
+
+pub fn icosahedron() -> (Vec<Vertex>, Vec<u16>) {
+    let f = (1.0+5.0_f32.sqrt())/2.0;
+    let positions = vec![
+        [-1.0, f, 0.0],
+        [1.0, f, 0.0,],
+        [-1.0, -f, 0.0,],
+        [1.0, -f, 0.0,],
+        [0.0, -1.0, f,],
+        [0.0, 1.0, f,],
+        [0.0, -1.0, -f,],
+        [0.0, 1.0, -f,],
+        [f, 0.0, -1.0,],
+        [f, 0.0, 1.0,],
+        [-f, 0.0, -1.0,],
+        [-f, 0.0, 1.0],
+    ];
+
+    let vertices: Vec<Vertex> = positions.iter().map(|position| {
+        let v = cgmath::Vector3::from(position.to_owned());
+        let normal = v.normalize();
+        let colatitude = normal.y.acos();
+        let longitude = normal.x.atan2(normal.z);
+        Vertex {position: normal.into(), normal: normal.into(), tangent: [longitude.cos(), 0.0, -longitude.sin()], tex_coords: [(longitude + PI)/PI, colatitude/PI]}
+    }).collect();
+
+
+    let indices: Vec<u16> = vec![
+        0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+        11, 10, 2, 5, 11, 4, 1, 5, 9, 7, 1, 8, 10, 7, 6,
+        3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
+        9, 8, 1, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7
+    ];
+
+    (vertices, indices)
 }
