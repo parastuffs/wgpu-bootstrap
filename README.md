@@ -9,7 +9,7 @@ Add the library to your `cargo.toml`. Use the `tag` key to specify the version.
 
 ```toml
 [dependencies]
-wgpu-bootstrap = { git = "https://github.com/qlurkin/wgpu-bootstrap", tag = "v0.1.9" }
+wgpu-bootstrap = { git = "https://github.com/qlurkin/wgpu-bootstrap", tag = "v0.1.10" }
 bytemuck = { version = "1.4", features = [ "derive" ] }
 ```
 
