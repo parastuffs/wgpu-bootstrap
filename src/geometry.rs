@@ -119,6 +119,9 @@ pub fn compute_tangent_vectors(vertices: &mut Vec<Vertex>, indices: &Vec<u16>) {
         });
     
     vertices.iter_mut().enumerate().for_each(|(i, mut vertex)| {
-        vertex.tangent = tangents[i].normalize().into();
+        let tangent = tangents[i].normalize();
+        let normal = cgmath::Vector3::from(vertex.normal);
+        let tangent = tangent - normal.dot(tangent)*normal;
+        vertex.tangent = tangent.normalize().into();
     });
 }
