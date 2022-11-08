@@ -38,6 +38,17 @@ pub fn icosahedron() -> (Vec<Vertex>, Vec<u16>) {
     (vertices, indices)
 }
 
+fn compute_triangle_normal(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> cgmath::Vector3<f32> {
+    let v1_position = cgmath::Vector3::from(v1.position);
+    let v2_position = cgmath::Vector3::from(v2.position);
+    let v3_position = cgmath::Vector3::from(v3.position);
+
+    let position_1_2 = v2_position - v1_position;
+    let position_1_3 = v3_position - v1_position;
+
+    position_1_2.cross(position_1_3).normalize()
+}
+
 fn compute_triangle_tangent(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> (cgmath::Vector3<f32>, cgmath::Vector3<f32>) {
     let v1_position = cgmath::Vector3::from(v1.position);
     let v2_position = cgmath::Vector3::from(v2.position);
@@ -57,6 +68,33 @@ fn compute_triangle_tangent(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> (cgmath::V
     let bitangent = (-tex_coords_1_3.x * position_1_2 + tex_coords_1_2.x * position_1_3).normalize();
 
     (tangent, bitangent)
+}
+
+pub fn compute_normal_vectors(vertices: &mut Vec<Vertex>, indices: &Vec<u16>) {
+
+    let mut normals: Vec<cgmath::Vector3<f32>> = vertices.iter().map(|_vertex| {
+        cgmath::Vector3 {x: 0.0, y: 0.0, z: 0.0}
+    }).collect();
+    
+    indices
+        .as_slice()
+        .chunks_exact(3)
+        .map(|item| (item[0] as usize, item[1]as usize, item[2] as usize))
+        .for_each( |indices| {
+            let normal = compute_triangle_normal(
+                &vertices[indices.0],
+                &vertices[indices.1],
+                &vertices[indices.2]
+            );
+
+            normals[indices.0] = normals[indices.0] + normal;
+            normals[indices.1] = normals[indices.1] + normal;
+            normals[indices.2] = normals[indices.2] + normal;
+        });
+    
+    vertices.iter_mut().enumerate().for_each(|(i, mut vertex)| {
+        vertex.normal = normals[i].normalize().into();
+    });
 }
 
 pub fn compute_tangent_vectors(vertices: &mut Vec<Vertex>, indices: &Vec<u16>) {
