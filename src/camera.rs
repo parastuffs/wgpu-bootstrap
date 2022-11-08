@@ -47,21 +47,6 @@ impl Camera {
         context.create_buffer(&[camera_uniform], wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST)
     }
 
-    pub fn create_camera_bind_group_layout(&self, context: &Context) -> wgpu::BindGroupLayout {
-        context.create_bind_group_layout("Camera Bind Group Layout", &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }
-        ])
-    }
-
     pub fn create_camera_bind_group(&self, context: &Context) -> (wgpu::Buffer, wgpu::BindGroup) {
         let camera_buffer = self.create_camera_buffer(context);
         
