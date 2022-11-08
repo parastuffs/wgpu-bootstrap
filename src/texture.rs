@@ -16,17 +16,19 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8], 
-        label: &str
+        label: &str,
+        srgb: bool
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, label)
+        Self::from_image(device, queue, &img, label, srgb)
     }
 
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
-        label: &str
+        label: &str,
+        srgb: bool
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
         let dimensions = img.dimensions();
@@ -43,7 +45,7 @@ impl Texture {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
+                format: if srgb {wgpu::TextureFormat::Rgba8UnormSrgb} else {wgpu::TextureFormat::Rgba8Unorm},
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             }
         );

@@ -211,7 +211,11 @@ impl Context {
     }
 
     pub fn create_texture(&self, label: &str, bytes: &[u8]) -> Texture {
-        Texture::from_bytes(&self.device, &self.queue, bytes, label).unwrap()
+        Texture::from_bytes(&self.device, &self.queue, bytes, label, false).unwrap()
+    }
+
+    pub fn create_srgb_texture(&self, label: &str, bytes: &[u8]) -> Texture {
+        Texture::from_bytes(&self.device, &self.queue, bytes, label, true).unwrap()
     }
 
     pub fn create_bind_group_layout(&self, label:&str, bind_group_layout_entries: &[wgpu::BindGroupLayoutEntry]) -> wgpu::BindGroupLayout {

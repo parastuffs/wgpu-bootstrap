@@ -34,7 +34,7 @@ struct MyApp {
 
 impl MyApp {
     fn new(context: &Context) -> Self {
-        let texture = context.create_texture("happy-tree.png", include_bytes!("happy-tree.png"));
+        let texture = context.create_srgb_texture("happy-tree.png", include_bytes!("happy-tree.png"));
     
         let diffuse_bind_group = create_texture_bind_group(context, &texture);
     
