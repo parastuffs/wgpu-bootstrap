@@ -51,10 +51,12 @@ impl Window {
                             } => *control_flow = ControlFlow::Exit,
                             WindowEvent::Resized(physical_size) => {
                                 context.resize(*physical_size);
+                                application.resize(&context);
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                                 // new_inner_size is &mut so w have to dereference it twice
                                 context.resize(**new_inner_size);
+                                application.resize(&context);
                             }
                             _ => {}
                         }

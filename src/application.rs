@@ -10,5 +10,8 @@ pub trait Application {
     fn update(&mut self, context: &Context) {}
     
     #[allow(unused_variables)]
+    fn resize(&mut self, context: &Context) {}
+    
+    #[allow(unused_variables)]
     fn input(&mut self, event: &WindowEvent, context: &Context) -> bool { false }
 }
