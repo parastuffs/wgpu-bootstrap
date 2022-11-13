@@ -55,10 +55,16 @@ impl MyApp {
 
         let (_camera_buffer, camera_bind_group) = camera.create_camera_bind_group(context);
     
-        let pipeline = context.create_render_pipeline("Render Pipeline", include_str!("shader_instances.wgsl"), &[SimpleVertex::desc(), InstanceRaw::desc()], &[
-            &context.texture_bind_group_layout,
-            &context.camera_bind_group_layout,
-        ]);
+        let pipeline = context.create_render_pipeline(
+            "Render Pipeline",
+            include_str!("shader_instances.wgsl"),
+            &[SimpleVertex::desc(), InstanceRaw::desc()],
+            &[
+                &context.texture_bind_group_layout,
+                &context.camera_bind_group_layout,
+            ],
+            wgpu::PrimitiveTopology::TriangleList
+        );
     
         let vertex_buffer = context.create_buffer(VERTICES, wgpu::BufferUsages::VERTEX);
         let index_buffer = context.create_buffer(INDICES, wgpu::BufferUsages::INDEX);
@@ -100,7 +106,7 @@ impl Application for MyApp {
         let mut frame = Frame::new(context)?;
 
         {
-            let mut render_pass = frame.begin_render_pass();
+            let mut render_pass = frame.begin_render_pass(wgpu::Color {r: 0.1, g: 0.2, b: 0.3, a: 1.0});
 
             render_pass.set_pipeline(&self.pipeline);
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
@@ -114,6 +120,23 @@ impl Application for MyApp {
         frame.present();
 
         Ok(())
+    }
+
+    fn update(&mut self, context: &Context, delta_time: f32) {
+        for instance in self.instances.iter_mut() {
+            let rotation = if instance.position.is_zero() {
+                // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                // as Quaternions can effect scale if they're not created correctly
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0))
+            } else {
+                cgmath::Quaternion::from_axis_angle(instance.position.normalize(), cgmath::Deg(45.0*delta_time))
+            };
+            
+            instance.rotation = rotation * instance.rotation;
+        }
+
+        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        context.update_buffer(&self.instance_buffer, instance_data.as_slice());
     }
 }
 

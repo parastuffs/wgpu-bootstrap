@@ -7,7 +7,7 @@ pub trait Application {
     fn render(&self, context: &Context) -> Result<(), wgpu::SurfaceError> { Ok(()) }
     
     #[allow(unused_variables)]
-    fn update(&mut self, context: &Context) {}
+    fn update(&mut self, context: &Context, delta_time: f32) {}
     
     #[allow(unused_variables)]
     fn resize(&mut self, context: &Context) {}

@@ -3,6 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window as WinitWindow, WindowBuilder},
 };
+use std::time::{Duration, Instant};
 use crate::{context::Context, application::Application};
 
 pub struct Window {
@@ -29,6 +30,7 @@ impl Window {
     pub fn run<T>(self, mut application: T)
     where T: Application + 'static
     {
+        let mut now = Instant::now();
         let window = self.window;
         let mut context = self.context;
         self.event_loop.run(move |event, _, control_flow| {
@@ -63,7 +65,10 @@ impl Window {
                     }
                 }
                 Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    application.update(&context);
+                    let new_now = Instant::now();
+                    let delta_time = new_now.duration_since(now).as_micros();
+                    now = new_now;
+                    application.update(&context, delta_time as f32/1000000.0);
                     match application.render(&context) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated

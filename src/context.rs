@@ -128,7 +128,7 @@ impl Context {
         self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
-    pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layouts: &[wgpu::VertexBufferLayout], bind_group_layouts: &[&wgpu::BindGroupLayout]) -> wgpu::RenderPipeline {
+    pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layouts: &[wgpu::VertexBufferLayout], bind_group_layouts: &[&wgpu::BindGroupLayout], topology: wgpu::PrimitiveTopology) -> wgpu::RenderPipeline {
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(format!("{} Shader", label).as_str()),
             source: wgpu::ShaderSource::Wgsl(source.into()),
@@ -162,7 +162,7 @@ impl Context {
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
@@ -199,7 +199,7 @@ impl Context {
             &wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
                 contents: bytemuck::cast_slice(data),
-                usage,
+                usage: usage | wgpu::BufferUsages::COPY_DST,
             }
         )
     }
