@@ -3,7 +3,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window as WinitWindow, WindowBuilder},
 };
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use crate::{context::Context, application::Application};
 
 pub struct Window {
