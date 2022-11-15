@@ -21,9 +21,9 @@ impl Window {
         let context = pollster::block_on(Context::new(&window));
 
         Self {
-            event_loop,
-            window,
-            context,
+                event_loop,
+                window,
+                context,
         }
     }
 
