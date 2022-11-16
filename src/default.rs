@@ -133,9 +133,11 @@ impl InstanceRaw {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Particle {
-    pub position: cgmath::Vector3<f32>,
-    pub velocity: cgmath::Vector3<f32>,
+    pub position: [f32; 3],
+    pub velocity: [f32; 3],
 }
 
 impl Particle {
