@@ -1,39 +1,76 @@
 use crate::default::Vertex;
 use cgmath::prelude::*;
-use std::f32::consts::PI;
+use std::{f32::consts::PI, collections::HashMap};
 
-pub fn icosahedron() -> (Vec<Vertex>, Vec<u16>) {
+pub fn icosahedron(order: u32) -> (Vec<Vertex>, Vec<u16>) {
     let f = (1.0+5.0_f32.sqrt())/2.0;
-    let positions = vec![
-        [-1.0, f, 0.0],
-        [1.0, f, 0.0,],
-        [-1.0, -f, 0.0,],
-        [1.0, -f, 0.0,],
-        [0.0, -1.0, f,],
-        [0.0, 1.0, f,],
-        [0.0, -1.0, -f,],
-        [0.0, 1.0, -f,],
-        [f, 0.0, -1.0,],
-        [f, 0.0, 1.0,],
-        [-f, 0.0, -1.0,],
-        [-f, 0.0, 1.0],
+    let mut positions = vec![
+        cgmath::Vector3 {x: -1.0, y: f, z: 0.0},
+        cgmath::Vector3 {x: 1.0, y: f, z: 0.0},
+        cgmath::Vector3 {x: -1.0, y: -f, z: 0.0},
+        cgmath::Vector3 {x: 1.0, y: -f, z: 0.0},
+        cgmath::Vector3 {x: 0.0, y: -1.0, z: f},
+        cgmath::Vector3 {x: 0.0, y: 1.0, z: f},
+        cgmath::Vector3 {x: 0.0, y: -1.0, z: -f},
+        cgmath::Vector3 {x: 0.0, y: 1.0, z: -f},
+        cgmath::Vector3 {x: f, y: 0.0, z: -1.0},
+        cgmath::Vector3 {x: f, y: 0.0, z: 1.0},
+        cgmath::Vector3 {x: -f, y: 0.0, z: -1.0},
+        cgmath::Vector3 {x: -f, y: 0.0, z: 1.},
     ];
 
-    let vertices: Vec<Vertex> = positions.iter().map(|position| {
-        let v = cgmath::Vector3::from(position.to_owned());
-        let normal = v.normalize();
-        let colatitude = normal.y.acos();
-        let longitude = normal.x.atan2(normal.z);
-        Vertex {position: normal.into(), normal: normal.into(), tangent: [longitude.cos(), 0.0, -longitude.sin()], tex_coords: [(longitude + PI)/PI, colatitude/PI]}
-    }).collect();
-
-
-    let indices: Vec<u16> = vec![
+    let mut indices: Vec<u16> = vec![
         0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
         11, 10, 2, 5, 11, 4, 1, 5, 9, 7, 1, 8, 10, 7, 6,
         3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
         9, 8, 1, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7
     ];
+
+    let mut v: u16 = 12;
+    let mut mid_cache = HashMap::new();
+
+    let mut add_mid_point = |a: u16, b: u16| -> u16 {
+        let a: u32 = a.into();
+        let b: u32 = b.into();
+        let key: u32 = ((a + b) * (a + b + 1) / 2) + std::cmp::min(a, b); 
+
+        mid_cache.entry(key).or_insert_with(|| {
+            let i = v;
+            positions.push((positions[a as usize] + positions[b as usize]) / 2.0);
+            v += 1;
+            i
+        }).to_owned()
+    };
+
+    let mut subdivide = |indices: Vec<u16>| -> Vec<u16> {
+        let mut res = Vec::new();
+        for k in 0..indices.len()/3 {
+            let k = k * 3;
+            let v1 = indices[k];
+            let v2 = indices[k + 1];
+            let v3 = indices[k + 2];
+            let a = add_mid_point(v1, v2);
+            let b = add_mid_point(v2, v3);
+            let c = add_mid_point(v3, v1);
+            res.push(v1); res.push(a); res.push(c);
+            res.push(v2); res.push(b); res.push(a);
+            res.push(v3); res.push(c); res.push(b);
+            res.push(a); res.push(b); res.push(c);
+        }
+        res
+    };
+
+    for _ in 0..order {
+        indices = subdivide(indices);
+    }
+
+    let vertices: Vec<Vertex> = positions.iter().map(|position| {
+        //let v = cgmath::Vector3::from(position.to_owned());
+        let normal = position.normalize();
+        let colatitude = normal.y.acos();
+        let longitude = normal.x.atan2(normal.z);
+        Vertex {position: normal.into(), normal: normal.into(), tangent: [longitude.cos(), 0.0, -longitude.sin()], tex_coords: [(longitude + PI)/PI, colatitude/PI]}
+    }).collect();
 
     (vertices, indices)
 }

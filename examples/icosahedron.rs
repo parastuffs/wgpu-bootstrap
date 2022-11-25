@@ -42,7 +42,7 @@ impl MyApp {
             wgpu::PrimitiveTopology::TriangleList
         );
 
-        let (vertices, indices) = icosahedron();
+        let (vertices, indices) = icosahedron(4);
     
         let vertex_buffer = context.create_buffer(vertices.as_slice(), wgpu::BufferUsages::VERTEX);
         let index_buffer = context.create_buffer(indices.as_slice(), wgpu::BufferUsages::INDEX);
