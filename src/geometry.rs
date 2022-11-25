@@ -2,7 +2,7 @@ use crate::default::Vertex;
 use cgmath::prelude::*;
 use std::{f32::consts::PI, collections::HashMap};
 
-pub fn icosahedron(order: u32) -> (Vec<Vertex>, Vec<u16>) {
+pub fn icosphere(order: u32) -> (Vec<Vertex>, Vec<u16>) {
     let f = (1.0+5.0_f32.sqrt())/2.0;
     let mut positions = vec![
         cgmath::Vector3 {x: -1.0, y: f, z: 0.0},

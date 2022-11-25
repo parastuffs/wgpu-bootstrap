@@ -6,7 +6,7 @@ use wgpu_bootstrap::{
     context::Context,
     camera::Camera,
     default::Vertex,
-    geometry::{icosahedron, compute_line_list},
+    geometry::{icosphere, compute_line_list},
     wgpu,
 };
 
@@ -42,7 +42,7 @@ impl MyApp {
             wgpu::PrimitiveTopology::LineList
         );
 
-        let (vertices, indices) = icosahedron(4);
+        let (vertices, indices) = icosphere(4);
    
         let indices = compute_line_list(indices);
 
