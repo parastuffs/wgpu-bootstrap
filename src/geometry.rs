@@ -32,6 +32,7 @@ pub fn icosahedron(order: u32) -> (Vec<Vertex>, Vec<u16>) {
     let mut add_mid_point = |a: u16, b: u16| -> u16 {
         let a: u32 = a.into();
         let b: u32 = b.into();
+        // Cantor's Pairing Function
         let key: u32 = ((a + b) * (a + b + 1) / 2) + std::cmp::min(a, b); 
 
         mid_cache.entry(key).or_insert_with(|| {
@@ -161,4 +162,37 @@ pub fn compute_tangent_vectors(vertices: &mut Vec<Vertex>, indices: &Vec<u16>) {
         let tangent = tangent - normal.dot(tangent)*normal;
         vertex.tangent = tangent.normalize().into();
     });
+}
+
+pub fn compute_line_list(triangle_list: Vec<u16>) -> Vec<u16> {
+    let mut lines = HashMap::new();
+
+    let mut add_line = |v1: u16, v2: u16| {
+        let a = std::cmp::min(v1, v2);
+        let b = std::cmp::max(v1, v2);
+
+        // Cantor's Pairing Function
+        let key: u32 = ((a as u32 + b as u32) * (a as u32 + b as u32 + 1) / 2) + a as u32; 
+        lines.entry(key).or_insert_with(||{
+            (a, b)
+        });
+    };
+
+    for i in 0..triangle_list.len()/3 {
+        let i = i * 3;
+        let v1 = triangle_list[i];
+        let v2 = triangle_list[i + 1];
+        let v3 = triangle_list[i + 2];
+        add_line(v1, v2);
+        add_line(v2, v3);
+        add_line(v3, v1);
+    }
+
+    let mut res = Vec::new();
+    for (_key, value) in lines {
+        res.push(value.0);
+        res.push(value.1);
+    }
+
+    res
 }

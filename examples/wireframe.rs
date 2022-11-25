@@ -6,7 +6,7 @@ use wgpu_bootstrap::{
     context::Context,
     camera::Camera,
     default::Vertex,
-    geometry::icosahedron,
+    geometry::{icosahedron, compute_line_list},
     wgpu,
 };
 
@@ -39,11 +39,13 @@ impl MyApp {
             &[
                 &context.camera_bind_group_layout,
             ],
-            wgpu::PrimitiveTopology::TriangleList
+            wgpu::PrimitiveTopology::LineList
         );
 
-        let (vertices, indices) = icosahedron(0);
-    
+        let (vertices, indices) = icosahedron(4);
+   
+        let indices = compute_line_list(indices);
+
         let vertex_buffer = context.create_buffer(vertices.as_slice(), wgpu::BufferUsages::VERTEX);
         let index_buffer = context.create_buffer(indices.as_slice(), wgpu::BufferUsages::INDEX);
 
