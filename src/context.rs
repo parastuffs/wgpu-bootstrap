@@ -128,6 +128,23 @@ impl Context {
         self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
+    pub fn create_compute_pipeline(&self, label: &str, source: &str, /* bind_group_layouts: &[&wgpu::BindGroupLayout] */) -> wgpu::ComputePipeline {
+        // let layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        //     label: Some(format!("{} {}", label, "Layout").as_str()),
+        //     bind_group_layouts,
+        //     push_constant_ranges: &[],
+        // });
+        self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some(label),
+            layout: None, //Some(&layout),
+            module: &self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(format!("{} Shader", label).as_str()),
+                source: wgpu::ShaderSource::Wgsl(source.into()),
+            }),
+            entry_point: "main",
+        })
+    }
+
     pub fn create_render_pipeline(&self, label: &str, source: &str, vertex_buffer_layouts: &[wgpu::VertexBufferLayout], bind_group_layouts: &[&wgpu::BindGroupLayout], topology: wgpu::PrimitiveTopology) -> wgpu::RenderPipeline {
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some(format!("{} Shader", label).as_str()),
@@ -136,8 +153,8 @@ impl Context {
     
         let render_pipeline_layout =
             self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some(format!("{} Pipeline Layout", label).as_str()),
-                bind_group_layouts: bind_group_layouts,
+                label: Some(format!("{} Layout", label).as_str()),
+                bind_group_layouts,
                 push_constant_ranges: &[],
             });
     
