@@ -185,7 +185,7 @@ impl Application for MyApp {
             compute_pass.dispatch_workgroups(2, 1, 1);
         }
 
-        computation.run();
+        computation.submit();
     }
 }
 

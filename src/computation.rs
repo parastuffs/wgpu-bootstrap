@@ -26,7 +26,7 @@ impl<'a> Computation<'a> {
         })
     }
 
-    pub fn run(self) {
+    pub fn submit(self) {
         //let command_buffer = self.encoder.take().expect("You can't run a computation more than once").finish();
         self.queue.submit(std::iter::once(self.encoder.finish()));
     }
