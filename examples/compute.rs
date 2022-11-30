@@ -186,7 +186,6 @@ impl Application for MyApp {
         }
 
         computation.run();
-        computation.wait();
     }
 }
 

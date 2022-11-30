@@ -252,4 +252,8 @@ impl Context {
     pub fn get_aspect_ratio(&self) -> f32{
         self.config.width as f32 / self.config.height as f32
     }
+    
+    pub fn wait(&self) {
+       self.device.poll(wgpu::Maintain::Wait);
+    }
 }
