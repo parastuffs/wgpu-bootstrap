@@ -1,10 +1,10 @@
+use crate::{application::Application, context::Context};
+use std::time::Instant;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window as WinitWindow, WindowBuilder},
 };
-use std::time::Instant;
-use crate::{context::Context, application::Application};
 
 pub struct Window {
     event_loop: EventLoop<()>,
@@ -21,14 +21,15 @@ impl Window {
         let context = pollster::block_on(Context::new(&window));
 
         Self {
-                event_loop,
-                window,
-                context,
+            event_loop,
+            window,
+            context,
         }
     }
 
     pub fn run<T>(self, mut application: T)
-    where T: Application + 'static
+    where
+        T: Application + 'static,
     {
         let mut now = Instant::now();
         let window = self.window;
@@ -52,6 +53,13 @@ impl Window {
                                 ..
                             } => *control_flow = ControlFlow::Exit,
                             WindowEvent::Resized(physical_size) => {
+                                println!("RESIZE {}", physical_size.width);
+                                if physical_size.width == u32::MAX
+                                    || physical_size.height == u32::MAX
+                                {
+                                    // HACK to fix a bug on Macos 14
+                                    return;
+                                }
                                 context.resize(*physical_size);
                                 application.resize(&context);
                             }
@@ -68,11 +76,13 @@ impl Window {
                     let new_now = Instant::now();
                     let delta_time = new_now.duration_since(now).as_micros();
                     now = new_now;
-                    application.update(&context, delta_time as f32/1000000.0);
+                    application.update(&context, delta_time as f32 / 1000000.0);
                     match application.render(&context) {
                         Ok(_) => {}
                         // Reconfigure the surface if it's lost or outdated
-                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => context.resize(context.size),
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            context.resize(context.size)
+                        }
                         // The system is out of memory, we should probably quit
                         Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                         // We're ignoring timeouts
