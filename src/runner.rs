@@ -58,6 +58,7 @@ impl Runner {
             RenderPass::new(self.context.device(), self.context.config().format, 1);
 
         let start_time = Instant::now();
+        let mut last: Option<Instant> = None;
         self.event_loop.run(move |event, _, control_flow| {
             control_flow.set_poll();
 
@@ -90,9 +91,15 @@ impl Runner {
                     self.context.window().request_redraw();
                 }
                 Event::RedrawRequested(_) => {
-                    platform.update_time(start_time.elapsed().as_secs_f64());
+                    let now = Instant::now();
+                    let delta_time = match last {
+                        Some(last) => now.duration_since(last).as_secs_f32(),
+                        None => 0.0,
+                    };
+                    last = Some(now);
+                    platform.update_time(now.duration_since(start_time).as_secs_f64());
 
-                    app.update(&mut self.context, 0.0);
+                    app.update(&mut self.context, delta_time);
 
                     let output = self.context.surface().get_current_texture();
 
