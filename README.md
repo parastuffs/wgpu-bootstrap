@@ -9,18 +9,18 @@ Add the library to your `cargo.toml`. Use the `tag` key to specify the version.
 
 ```toml
 [dependencies]
-wgpu-bootstrap = { git = "https://github.com/qlurkin/wgpu-bootstrap", tag = "v0.1.22" }
-bytemuck = { version = "1.4", features = [ "derive" ] }
+wgpu-bootstrap = { git = "https://github.com/qlurkin/wgpu-bootstrap", tag = "v0.2.0" }
+bytemuck = { version = "1.12", features = [ "derive" ] }
 ```
 
 ## Example
 
-You can find an example of project in [the example directory](https://github.com/qlurkin/wgpu-bootstrap/tree/main/examples)
+You can find examples of project in [the example directory](https://github.com/qlurkin/wgpu-bootstrap/tree/main/examples)
 
-You can run the example with
+You can run the examples with
 
 ```shell
-cargo run --example simple_texture
+cargo run --example triangle
 ```
 
 ## Credits
