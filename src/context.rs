@@ -1,6 +1,29 @@
 use winit::event_loop::EventLoop;
 use winit::window::{Window, WindowBuilder};
 
+fn create_depth_texture(
+    size: winit::dpi::PhysicalSize<u32>,
+    depth_format: wgpu::TextureFormat,
+    device: &wgpu::Device,
+) -> wgpu::TextureView {
+    let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("Depth Texture Descriptor"),
+        size: wgpu::Extent3d {
+            width: size.width,
+            height: size.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: depth_format,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+
+    depth_texture.create_view(&wgpu::TextureViewDescriptor::default())
+}
+
 pub struct Context {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -8,6 +31,8 @@ pub struct Context {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
+    depth_format: wgpu::TextureFormat,
+    depth_texture_view: wgpu::TextureView,
 }
 
 impl Context {
@@ -74,6 +99,9 @@ impl Context {
         };
         surface.configure(&device, &config);
 
+        let depth_format: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+        let depth_texture_view = create_depth_texture(size, depth_format, &device);
+
         Self {
             window,
             surface,
@@ -81,6 +109,8 @@ impl Context {
             queue,
             config,
             size,
+            depth_format,
+            depth_texture_view,
         }
     }
 
@@ -108,12 +138,22 @@ impl Context {
         &self.size
     }
 
+    pub fn depth_format(&self) -> &wgpu::TextureFormat {
+        &self.depth_format
+    }
+
+    pub fn depth_texture_view(&self) -> &wgpu::TextureView {
+        &self.depth_texture_view
+    }
+
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.depth_texture_view =
+                create_depth_texture(self.size, self.depth_format, self.device());
         }
     }
 }
