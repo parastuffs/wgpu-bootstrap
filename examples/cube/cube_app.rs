@@ -236,7 +236,7 @@ impl CubeApp {
                 });
 
         let view = cgmath::Matrix4::look_at_rh(
-            (1.0, 2.0, 1.0).into(),
+            (2.0, 1.0, 1.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
         );
@@ -336,7 +336,13 @@ impl CubeApp {
                         // Requires Features::CONSERVATIVE_RASTERIZATION
                         conservative: false,
                     },
-                    depth_stencil: None,
+                    depth_stencil: Some(wgpu::DepthStencilState {
+                        format: *context.depth_format(),
+                        depth_write_enabled: true,
+                        depth_compare: wgpu::CompareFunction::Less,
+                        stencil: wgpu::StencilState::default(),
+                        bias: wgpu::DepthBiasState::default(),
+                    }),
                     multisample: wgpu::MultisampleState {
                         count: 1,
                         mask: !0,
@@ -384,7 +390,14 @@ impl App for CubeApp {
                         store: true,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: context.depth_texture_view(),
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
+                }),
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
