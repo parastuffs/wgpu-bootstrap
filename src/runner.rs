@@ -76,8 +76,10 @@ impl Runner {
                                 control_flow.set_exit();
                             }
                             WindowEvent::Resized(physical_size) => {
-                                println!("Scaling Window");
-                                self.context.resize(*physical_size);
+                                // Hack for MacOS 14 Bug
+                                if physical_size.width < u32::MAX {
+                                    self.context.resize(*physical_size);
+                                }
                             }
                             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                                 println!("Scale Factor Changed");
