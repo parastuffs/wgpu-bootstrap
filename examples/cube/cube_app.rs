@@ -15,7 +15,6 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
     position: [f32; 3],
-    normal: [f32; 3],
     color: [f32; 3],
 }
 
@@ -33,11 +32,6 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
-                    shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
                 },
             ],
@@ -69,127 +63,103 @@ impl CameraUniform {
 const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.5, 0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
         position: [-0.5, 0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
         position: [-0.5, -0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
         position: [0.5, -0.5, 0.5],
-        normal: [0.0, 0.0, 1.0],
         color: [1.0, 0.0, 0.0],
     },
     ///////////////////////////////////
     Vertex {
         position: [0.5, 0.5, 0.5],
-        normal: [1.0, 0.0, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
         position: [0.5, -0.5, 0.5],
-        normal: [1.0, 0.0, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
         position: [0.5, -0.5, -0.5],
-        normal: [1.0, 0.0, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
         position: [0.5, 0.5, -0.5],
-        normal: [1.0, 0.0, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     //////////////////////////////
     Vertex {
         position: [0.5, 0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
         color: [0.0, 0.0, 1.0],
     },
     Vertex {
         position: [0.5, -0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
         color: [0.0, 0.0, 1.0],
     },
     Vertex {
         position: [-0.5, -0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
         color: [0.0, 0.0, 1.0],
     },
     Vertex {
         position: [-0.5, 0.5, -0.5],
-        normal: [0.0, 0.0, -1.0],
         color: [0.0, 0.0, 1.0],
     },
     //////////////////////////////
     Vertex {
         position: [-0.5, 0.5, 0.5],
-        normal: [-1.0, 0.0, 0.0],
         color: [1.0, 1.0, 0.0],
     },
     Vertex {
         position: [-0.5, 0.5, -0.5],
-        normal: [-1.0, 0.0, 0.0],
         color: [1.0, 1.0, 0.0],
     },
     Vertex {
         position: [-0.5, -0.5, -0.5],
-        normal: [-1.0, 0.0, 0.0],
         color: [1.0, 1.0, 0.0],
     },
     Vertex {
         position: [-0.5, -0.5, 0.5],
-        normal: [-1.0, 0.0, 0.0],
         color: [1.0, 1.0, 0.0],
     },
     //////////////////////////////
     Vertex {
         position: [0.5, 0.5, 0.5],
-        normal: [0.0, 1.0, 0.0],
         color: [0.0, 1.0, 1.0],
     },
     Vertex {
         position: [0.5, 0.5, -0.5],
-        normal: [0.0, 1.0, 0.0],
         color: [0.0, 1.0, 1.0],
     },
     Vertex {
         position: [-0.5, 0.5, -0.5],
-        normal: [0.0, 1.0, 0.0],
         color: [0.0, 1.0, 1.0],
     },
     Vertex {
         position: [-0.5, 0.5, 0.5],
-        normal: [0.0, 1.0, 0.0],
         color: [0.0, 1.0, 1.0],
     },
     //////////////////////////////
     Vertex {
         position: [0.5, -0.5, 0.5],
-        normal: [0.0, -1.0, 0.0],
         color: [1.0, 0.0, 1.0],
     },
     Vertex {
         position: [-0.5, -0.5, 0.5],
-        normal: [0.0, -1.0, 0.0],
         color: [1.0, 0.0, 1.0],
     },
     Vertex {
         position: [-0.5, -0.5, -0.5],
-        normal: [0.0, -1.0, 0.0],
         color: [1.0, 0.0, 1.0],
     },
     Vertex {
         position: [0.5, -0.5, -0.5],
-        normal: [0.0, -1.0, 0.0],
         color: [1.0, 0.0, 1.0],
     },
 ];
