@@ -32,7 +32,7 @@ pub struct Context {
     size: winit::dpi::PhysicalSize<u32>,
     window: Window,
     depth_format: wgpu::TextureFormat,
-    depth_texture_view: wgpu::TextureView,
+    depth_texture_view: Option<wgpu::TextureView>,
 }
 
 impl Context {
@@ -100,7 +100,6 @@ impl Context {
         surface.configure(&device, &config);
 
         let depth_format: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-        let depth_texture_view = create_depth_texture(size, depth_format, &device);
 
         Self {
             window,
@@ -110,7 +109,7 @@ impl Context {
             config,
             size,
             depth_format,
-            depth_texture_view,
+            depth_texture_view: None,
         }
     }
 
@@ -142,8 +141,19 @@ impl Context {
         &self.depth_format
     }
 
-    pub fn depth_texture_view(&self) -> &wgpu::TextureView {
-        &self.depth_texture_view
+    pub fn depth_texture_view(&mut self) -> &wgpu::TextureView {
+        match self.depth_texture_view {
+            Some(_) => {}
+            None => {
+                println!("Depth Texture Created");
+                self.depth_texture_view = Some(create_depth_texture(
+                    self.size,
+                    self.depth_format,
+                    self.device(),
+                ));
+            }
+        };
+        self.depth_texture_view.as_ref().unwrap()
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -152,8 +162,16 @@ impl Context {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-            self.depth_texture_view =
-                create_depth_texture(self.size, self.depth_format, self.device());
+            match self.depth_texture_view {
+                None => {}
+                Some(_) => {
+                    self.depth_texture_view = Some(create_depth_texture(
+                        self.size,
+                        self.depth_format,
+                        self.device(),
+                    ));
+                }
+            };
         }
     }
 }
