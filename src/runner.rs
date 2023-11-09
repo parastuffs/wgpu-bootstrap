@@ -22,9 +22,7 @@ pub trait App {
     fn update(&mut self, context: &mut Context, delta_time: f32) {}
 
     #[allow(unused_variables)]
-    fn input(&mut self, event: &WindowEvent) -> bool {
-        false
-    }
+    fn input(&mut self, context: &mut Context, event: &Event<()>) {}
 }
 
 pub struct Runner {
@@ -62,31 +60,27 @@ impl Runner {
         self.event_loop.run(move |event, _, control_flow| {
             control_flow.set_poll();
 
-            platform.handle_event(&event);
-
             match event {
                 Event::WindowEvent {
                     ref event,
                     window_id,
                 } if window_id == self.context.window().id() => {
-                    if !app.input(event) {
-                        match event {
-                            WindowEvent::CloseRequested => {
-                                println!("The close button was pressed; stopping");
-                                control_flow.set_exit();
-                            }
-                            WindowEvent::Resized(physical_size) => {
-                                // Hack for MacOS 14 Bug
-                                if physical_size.width < u32::MAX {
-                                    self.context.resize(*physical_size);
-                                }
-                            }
-                            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                                println!("Scale Factor Changed");
-                                self.context.resize(**new_inner_size);
-                            }
-                            _ => {}
+                    match event {
+                        WindowEvent::CloseRequested => {
+                            println!("The close button was pressed; stopping");
+                            control_flow.set_exit();
                         }
+                        WindowEvent::Resized(physical_size) => {
+                            // Hack for MacOS 14 Bug
+                            if physical_size.width < u32::MAX {
+                                self.context.resize(*physical_size);
+                            }
+                        }
+                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                            println!("Scale Factor Changed");
+                            self.context.resize(**new_inner_size);
+                        }
+                        _ => {}
                     }
                 }
                 Event::MainEventsCleared => {
@@ -178,6 +172,12 @@ impl Runner {
                         .expect("remove texture ok");
                 }
                 _ => {}
+            }
+
+            platform.handle_event(&event);
+
+            if !platform.captures_event(&event) {
+                app.input(&mut self.context, &event);
             }
         });
     }

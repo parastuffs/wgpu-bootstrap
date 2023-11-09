@@ -1,7 +1,9 @@
+use std::f32::consts::PI;
+
 use wgpu::{util::DeviceExt, TextureView};
 use wgpu_bootstrap::context::Context;
 use wgpu_bootstrap::runner::App;
-use winit::event::WindowEvent;
+use winit::event::{DeviceEvent, ElementState, Event};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -179,7 +181,12 @@ pub struct CubeApp {
     index_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
     num_indices: u32,
+    proj: cgmath::Matrix4<f32>,
+    eye_pos: cgmath::Point3<f32>,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    orbiting: bool,
 }
 
 impl CubeApp {
@@ -205,21 +212,17 @@ impl CubeApp {
                     usage: wgpu::BufferUsages::VERTEX,
                 });
 
-        let view = cgmath::Matrix4::look_at_rh(
-            (2.0, 1.0, 1.0).into(),
-            (0.0, 0.0, 0.0).into(),
-            cgmath::Vector3::unit_y(),
-        );
+        // polar coordinates radius, longitude, latitude
+        let eye_pos = cgmath::point3(2.0, 0.0, 0.0);
+
         let proj = cgmath::perspective(
             cgmath::Deg(45.0),
             context.config().width as f32 / context.config().height as f32,
             0.1,
             100.0,
         );
-        let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj * view;
 
-        let mut camera_uniform = CameraUniform::new();
-        camera_uniform.update_view_proj(projection_matrix);
+        let camera_uniform = CameraUniform::new();
 
         let camera_buffer =
             context
@@ -321,19 +324,76 @@ impl CubeApp {
                     multiview: None,
                 });
 
-        Self {
+        let mut obj = Self {
             vertex_buffer,
             index_buffer,
             render_pipeline,
             num_indices,
+            proj,
+            eye_pos,
+            camera_uniform,
+            camera_buffer,
             camera_bind_group,
-        }
+            orbiting: false,
+        };
+
+        obj.update_camera(context);
+
+        obj
+    }
+
+    fn update_camera(&mut self, context: &Context) {
+        // compute cartesian coordinates
+        let eye_pos = cgmath::point3(
+            self.eye_pos.x * self.eye_pos.z.cos() * self.eye_pos.y.cos(),
+            self.eye_pos.x * self.eye_pos.z.sin(),
+            self.eye_pos.x * self.eye_pos.z.cos() * self.eye_pos.y.sin(),
+        );
+
+        let view = cgmath::Matrix4::look_at_rh(
+            eye_pos,
+            cgmath::point3(0.0, 0.0, 0.0),
+            cgmath::Vector3::unit_y(),
+        );
+        let projection_matrix = OPENGL_TO_WGPU_MATRIX * self.proj * view;
+        self.camera_uniform.update_view_proj(projection_matrix);
+        context.queue().write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::cast_slice(&[self.camera_uniform]),
+        );
     }
 }
 
 impl App for CubeApp {
-    fn input(&mut self, _event: &WindowEvent) -> bool {
-        false
+    fn input(&mut self, context: &mut Context, event: &Event<()>) {
+        if let Event::DeviceEvent {
+            device_id: _,
+            event,
+        } = event
+        {
+            match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    if self.orbiting {
+                        self.eye_pos = cgmath::point3(
+                            self.eye_pos.x,
+                            self.eye_pos.y + 0.01 * (delta.0 as f32),
+                            (self.eye_pos.z + 0.01 * (delta.1 as f32)).clamp(-PI / 2.0, PI / 2.0),
+                        );
+                        self.update_camera(context);
+                    }
+                }
+                DeviceEvent::Button { button, state } => {
+                    if *button == 0 {
+                        match state {
+                            ElementState::Pressed => self.orbiting = true,
+                            ElementState::Released => self.orbiting = false,
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
     }
 
     fn render(&mut self, context: &mut Context, view: &TextureView) {

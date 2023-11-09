@@ -1,7 +1,6 @@
 use wgpu::{util::DeviceExt, TextureView};
 use wgpu_bootstrap::context::Context;
 use wgpu_bootstrap::runner::App;
-use winit::event::WindowEvent;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -129,10 +128,6 @@ impl TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn input(&mut self, _event: &WindowEvent) -> bool {
-        false
-    }
-
     fn render(&mut self, context: &mut Context, view: &TextureView) {
         let mut encoder =
             context
