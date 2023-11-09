@@ -1,9 +1,10 @@
 use std::f32::consts::PI;
 
+use cgmath::SquareMatrix;
 use wgpu::{util::DeviceExt, TextureView};
 use wgpu_bootstrap::context::Context;
 use wgpu_bootstrap::runner::App;
-use winit::event::{DeviceEvent, ElementState, Event};
+use winit::event::{DeviceEvent, ElementState, Event, MouseButton, WindowEvent};
 
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -51,7 +52,6 @@ struct CameraUniform {
 
 impl CameraUniform {
     fn new() -> Self {
-        use cgmath::SquareMatrix;
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
         }
@@ -59,6 +59,122 @@ impl CameraUniform {
 
     fn update_view_proj(&mut self, matrix: cgmath::Matrix4<f32>) {
         self.view_proj = matrix.into();
+    }
+
+    fn desc() -> wgpu::BindGroupLayoutDescriptor<'static> {
+        wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("Camera Bind Group Layout"),
+        }
+    }
+}
+
+struct Camera {
+    fovy: f32,
+    aspect: f32,
+    near: f32,
+    far: f32,
+    polar: cgmath::Point3<f32>,
+    target: cgmath::Point3<f32>,
+    up: cgmath::Vector3<f32>,
+    uniform: CameraUniform,
+    buffer: wgpu::Buffer,
+    bind_group: wgpu::BindGroup,
+    orbiting: bool,
+}
+
+impl Camera {
+    pub fn new(context: &Context, fovy: f32, aspect: f32, near: f32, far: f32) -> Self {
+        let uniform = CameraUniform::new();
+        let buffer = context
+            .device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+        let bind_group_layout = context
+            .device()
+            .create_bind_group_layout(&CameraUniform::desc());
+        let bind_group = context
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+                label: Some("Camera Bind Group"),
+            });
+
+        let mut res = Self {
+            fovy,
+            aspect,
+            near,
+            far,
+            polar: cgmath::point3(1.0, 0.0, 0.0),
+            target: cgmath::point3(0.0, 0.0, 0.0),
+            up: cgmath::Vector3::unit_y(),
+            uniform,
+            buffer,
+            bind_group,
+            orbiting: false,
+        };
+        res.update(context);
+        res
+    }
+
+    pub fn update(&mut self, context: &Context) {
+        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.near, self.far);
+
+        let pos = cgmath::point3(
+            self.polar.x * self.polar.z.cos() * self.polar.y.cos(),
+            self.polar.x * self.polar.z.sin(),
+            self.polar.x * self.polar.z.cos() * self.polar.y.sin(),
+        );
+
+        let view = cgmath::Matrix4::look_at_rh(pos, self.target, self.up);
+        let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj * view;
+        self.uniform.update_view_proj(projection_matrix);
+        context
+            .queue()
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
+    }
+
+    pub fn set_target(&mut self, target: cgmath::Point3<f32>) -> &mut Self {
+        self.target = target;
+        self
+    }
+
+    pub fn set_polar(&mut self, polar: cgmath::Point3<f32>) -> &mut Self {
+        self.polar = polar;
+        self
+    }
+
+    pub fn start_orbiting(&mut self) {
+        self.orbiting = true;
+    }
+
+    pub fn stop_orbiting(&mut self) {
+        self.orbiting = false;
+    }
+
+    pub fn delta_angles(&mut self, context: &Context, angles: (f32, f32)) {
+        if self.orbiting {
+            self.polar.y += 0.01 * angles.0;
+            self.polar.z += 0.01 * angles.1;
+            self.polar.z = self.polar.z.clamp(-PI / 2.0, PI / 2.0);
+            self.update(context);
+        }
     }
 }
 
@@ -181,12 +297,7 @@ pub struct CubeApp {
     index_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
     num_indices: u32,
-    proj: cgmath::Matrix4<f32>,
-    eye_pos: cgmath::Point3<f32>,
-    camera_uniform: CameraUniform,
-    camera_buffer: wgpu::Buffer,
-    camera_bind_group: wgpu::BindGroup,
-    orbiting: bool,
+    camera: Camera,
 }
 
 impl CubeApp {
@@ -212,54 +323,9 @@ impl CubeApp {
                     usage: wgpu::BufferUsages::VERTEX,
                 });
 
-        // polar coordinates radius, longitude, latitude
-        let eye_pos = cgmath::point3(2.0, 0.0, 0.0);
-
-        let proj = cgmath::perspective(
-            cgmath::Deg(45.0),
-            context.config().width as f32 / context.config().height as f32,
-            0.1,
-            100.0,
-        );
-
-        let camera_uniform = CameraUniform::new();
-
-        let camera_buffer =
-            context
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("Camera Buffer"),
-                    contents: bytemuck::cast_slice(&[camera_uniform]),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-
-        let camera_bind_group_layout =
-            context
-                .device()
-                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    entries: &[wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    }],
-                    label: Some("Camera Bind Group Layout"),
-                });
-
-        let camera_bind_group = context
+        let camera_bind_group_layout = context
             .device()
-            .create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &camera_bind_group_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }],
-                label: Some("camera_bind_group"),
-            });
+            .create_bind_group_layout(&CameraUniform::desc());
 
         let shader = context
             .device()
@@ -324,75 +390,57 @@ impl CubeApp {
                     multiview: None,
                 });
 
-        let mut obj = Self {
+        let mut camera = Camera::new(
+            context,
+            45.0,
+            (context.config().width as f32) / (context.config().height as f32),
+            0.1,
+            100.0,
+        );
+        camera
+            .set_target(cgmath::point3(0.0, 0.0, 0.0))
+            .set_polar(cgmath::point3(2.0, 0.0, 0.0))
+            .update(context);
+
+        Self {
             vertex_buffer,
             index_buffer,
             render_pipeline,
             num_indices,
-            proj,
-            eye_pos,
-            camera_uniform,
-            camera_buffer,
-            camera_bind_group,
-            orbiting: false,
-        };
-
-        obj.update_camera(context);
-
-        obj
-    }
-
-    fn update_camera(&mut self, context: &Context) {
-        // compute cartesian coordinates
-        let eye_pos = cgmath::point3(
-            self.eye_pos.x * self.eye_pos.z.cos() * self.eye_pos.y.cos(),
-            self.eye_pos.x * self.eye_pos.z.sin(),
-            self.eye_pos.x * self.eye_pos.z.cos() * self.eye_pos.y.sin(),
-        );
-
-        let view = cgmath::Matrix4::look_at_rh(
-            eye_pos,
-            cgmath::point3(0.0, 0.0, 0.0),
-            cgmath::Vector3::unit_y(),
-        );
-        let projection_matrix = OPENGL_TO_WGPU_MATRIX * self.proj * view;
-        self.camera_uniform.update_view_proj(projection_matrix);
-        context.queue().write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
-        );
+            camera,
+        }
     }
 }
 
 impl App for CubeApp {
     fn input(&mut self, context: &mut Context, event: &Event<()>) {
-        if let Event::DeviceEvent {
-            device_id: _,
-            event,
-        } = event
-        {
-            match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    if self.orbiting {
-                        self.eye_pos = cgmath::point3(
-                            self.eye_pos.x,
-                            self.eye_pos.y + 0.01 * (delta.0 as f32),
-                            (self.eye_pos.z + 0.01 * (delta.1 as f32)).clamp(-PI / 2.0, PI / 2.0),
-                        );
-                        self.update_camera(context);
+        #[allow(deprecated)]
+        match event {
+            Event::WindowEvent {
+                window_id: _,
+                event:
+                    WindowEvent::MouseInput {
+                        device_id: _,
+                        state,
+                        button,
+                        modifiers: _,
+                    },
+            } => {
+                if *button == MouseButton::Left {
+                    match state {
+                        ElementState::Pressed => self.camera.start_orbiting(),
+                        ElementState::Released => self.camera.stop_orbiting(),
                     }
                 }
-                DeviceEvent::Button { button, state } => {
-                    if *button == 0 {
-                        match state {
-                            ElementState::Pressed => self.orbiting = true,
-                            ElementState::Released => self.orbiting = false,
-                        }
-                    }
-                }
-                _ => (),
             }
+            Event::DeviceEvent {
+                device_id: _,
+                event: DeviceEvent::MouseMotion { delta },
+            } => {
+                let delta = (delta.0 as f32, delta.1 as f32);
+                self.camera.delta_angles(context, delta);
+            }
+            _ => (),
         }
     }
 
@@ -433,7 +481,7 @@ impl App for CubeApp {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.camera.bind_group, &[]);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
