@@ -1,7 +1,7 @@
 use wgpu_bootstrap::{
     context::Context,
     runner::App,
-    utils::orbit_camera::{CameraUniform, OrbitCamera},
+    util::orbit_camera::{CameraUniform, OrbitCamera},
     wgpu::{util::DeviceExt, TextureView},
     winit::event::Event,
 };
