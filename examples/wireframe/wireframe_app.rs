@@ -36,7 +36,7 @@ impl Vertex {
     }
 }
 
-pub struct ShadingApp {
+pub struct WireframeApp {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     render_pipeline: wgpu::RenderPipeline,
@@ -44,7 +44,7 @@ pub struct ShadingApp {
     camera: OrbitCamera,
 }
 
-impl ShadingApp {
+impl WireframeApp {
     pub fn new(context: &mut Context) -> Self {
         context.window().set_title("Wireframe App");
 
@@ -162,7 +162,7 @@ impl ShadingApp {
     }
 }
 
-impl App for ShadingApp {
+impl App for WireframeApp {
     fn input(&mut self, context: &mut Context, event: &winit::event::Event<()>) {
         self.camera.process_events(context, event);
     }

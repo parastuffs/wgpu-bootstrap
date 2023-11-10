@@ -56,7 +56,7 @@ impl Instance {
     }
 }
 
-pub struct ShadingApp {
+pub struct InstanceApp {
     vertex_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
@@ -66,7 +66,7 @@ pub struct ShadingApp {
     camera: OrbitCamera,
 }
 
-impl ShadingApp {
+impl InstanceApp {
     pub fn new(context: &mut Context) -> Self {
         context.window().set_title("Instances App");
 
@@ -201,7 +201,7 @@ impl ShadingApp {
     }
 }
 
-impl App for ShadingApp {
+impl App for InstanceApp {
     fn input(&mut self, context: &mut Context, event: &winit::event::Event<()>) {
         self.camera.process_events(context, event);
     }
