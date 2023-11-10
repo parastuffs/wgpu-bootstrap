@@ -1,6 +1,8 @@
-use wgpu::{util::DeviceExt, TextureView};
-use wgpu_bootstrap::context::Context;
-use wgpu_bootstrap::runner::App;
+use wgpu_bootstrap::{
+    context::Context,
+    runner::App,
+    wgpu::{self, util::DeviceExt, TextureView},
+};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
