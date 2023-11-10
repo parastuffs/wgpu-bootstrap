@@ -16,7 +16,7 @@ pub trait App {
     fn render(&mut self, context: &mut Context, view: &TextureView) {}
 
     #[allow(unused_variables)]
-    fn render_gui(&mut self, context: &egui::Context) {}
+    fn render_gui(&mut self, context: &mut Context, egui_context: &egui::Context) {}
 
     #[allow(unused_variables)]
     fn update(&mut self, context: &mut Context, delta_time: f32) {}
@@ -130,7 +130,7 @@ impl Runner {
                     // Begin to draw the UI frame.
                     platform.begin_frame();
 
-                    app.render_gui(&platform.context());
+                    app.render_gui(&mut self.context, &platform.context());
 
                     let full_output = platform.end_frame(Some(self.context.window()));
                     let paint_jobs = platform.context().tessellate(full_output.shapes);

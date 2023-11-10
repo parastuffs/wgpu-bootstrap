@@ -138,6 +138,46 @@ impl OrbitCamera {
         self
     }
 
+    pub fn set_radius(&mut self, value: f32) -> &mut Self {
+        if value >= 0.0 {
+            self.polar.x = value;
+        } else {
+            self.polar.x = 0.0;
+        }
+        self
+    }
+
+    pub fn radius(&self) -> f32 {
+        self.polar.x
+    }
+
+    pub fn set_longitude(&mut self, value: f32) -> &mut Self {
+        let mut value = value;
+        while value > PI {
+            value -= 2.0 * PI;
+        }
+        while value < -PI {
+            value += 2.0 * PI;
+        }
+
+        self.polar.y = value;
+
+        self
+    }
+
+    pub fn longitude(&self) -> f32 {
+        self.polar.y
+    }
+
+    pub fn set_latitude(&mut self, value: f32) -> &mut Self {
+        self.polar.z = value.clamp(-PI / 2.0, PI / 2.0);
+        self
+    }
+
+    pub fn latitude(&self) -> f32 {
+        self.polar.z
+    }
+
     pub fn start_orbiting(&mut self) {
         self.orbiting = true;
     }
@@ -148,10 +188,11 @@ impl OrbitCamera {
 
     pub fn delta_angles(&mut self, context: &Context, angles: (f32, f32)) {
         if self.orbiting {
-            self.polar.y += 0.01 * angles.0;
-            self.polar.z += 0.01 * angles.1;
-            self.polar.z = self.polar.z.clamp(-PI / 2.0, PI / 2.0);
-            self.update(context);
+            let longitude = self.longitude();
+            let latitude = self.latitude();
+            self.set_longitude(longitude + 0.01 * angles.0)
+                .set_latitude(latitude + 0.01 * angles.1)
+                .update(context);
         }
     }
 
