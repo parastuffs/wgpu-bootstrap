@@ -1,5 +1,4 @@
 pub mod context;
-pub mod geometry;
 pub mod runner;
 pub mod utils;
 pub use cgmath;
