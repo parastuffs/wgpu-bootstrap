@@ -84,9 +84,6 @@ impl Runner {
                     }
                 }
                 Event::MainEventsCleared => {
-                    self.context.window().request_redraw();
-                }
-                Event::RedrawRequested(_) => {
                     let now = Instant::now();
                     let delta_time = match last {
                         Some(last) => now.duration_since(last).as_secs_f32(),
@@ -96,7 +93,9 @@ impl Runner {
                     platform.update_time(now.duration_since(start_time).as_secs_f64());
 
                     app.update(&mut self.context, delta_time);
-
+                    self.context.window().request_redraw();
+                }
+                Event::RedrawRequested(_) => {
                     let output = self.context.surface().get_current_texture();
 
                     let frame = match output {
