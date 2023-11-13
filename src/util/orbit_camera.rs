@@ -120,6 +120,8 @@ impl OrbitCamera {
             self.polar.x * self.polar.z.cos() * self.polar.y.sin(),
         );
 
+        let pos = cgmath::Point3::from_vec(pos.to_vec() + self.target.to_vec());
+
         let view = cgmath::Matrix4::look_at_rh(pos, self.target, self.up);
         let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj * view;
         self.uniform.update_view_proj(projection_matrix);
