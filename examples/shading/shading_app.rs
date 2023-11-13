@@ -1,11 +1,12 @@
 use wgpu_bootstrap::{
+    cgmath,
     context::Context,
     runner::App,
     util::{
         geometry::icosphere,
         orbit_camera::{CameraUniform, OrbitCamera},
     },
-    wgpu::{util::DeviceExt, TextureView},
+    wgpu::{self, util::DeviceExt, TextureView},
 };
 
 #[repr(C)]

@@ -11,6 +11,7 @@ Add the library to your `cargo.toml`. Use the `tag` key to specify the version.
 [dependencies]
 wgpu-bootstrap = { git = "https://github.com/qlurkin/wgpu-bootstrap", tag = "v0.2.0" }
 bytemuck = { version = "1.12", features = [ "derive" ] }
+pollster = "0.3"
 ```
 
 ## Example
