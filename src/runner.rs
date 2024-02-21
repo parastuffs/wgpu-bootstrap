@@ -23,6 +23,9 @@ pub trait App {
 
     #[allow(unused_variables)]
     fn input(&mut self, context: &mut Context, event: &Event<()>) {}
+
+    #[allow(unused_variables)]
+    fn resize(&mut self, context: &mut Context, new_size: winit::dpi::PhysicalSize<u32>) {}
 }
 
 pub struct Runner {
@@ -74,11 +77,13 @@ impl Runner {
                             // Hack for MacOS 14 Bug
                             if physical_size.width < u32::MAX {
                                 self.context.resize(*physical_size);
+                                app.resize(&mut self.context, *physical_size);
                             }
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             println!("Scale Factor Changed");
                             self.context.resize(**new_inner_size);
+                            app.resize(&mut self.context, **new_inner_size);
                         }
                         _ => {}
                     }
