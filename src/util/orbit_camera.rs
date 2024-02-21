@@ -135,6 +135,11 @@ impl OrbitCamera {
         self
     }
 
+    pub fn set_aspect(&mut self, aspect: f32) -> &mut Self {
+        self.aspect = aspect;
+        self
+    }
+
     pub fn set_polar(&mut self, polar: cgmath::Point3<f32>) -> &mut Self {
         self.polar = polar;
         self
