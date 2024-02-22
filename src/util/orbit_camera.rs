@@ -19,25 +19,31 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 pub struct CameraUniform {
     // We can't use cgmath with bytemuck directly so we'll have
     // to convert the Matrix4 into a 4x4 f32 array
-    view_proj: [[f32; 4]; 4],
+    view: [[f32; 4]; 4],
+    proj: [[f32; 4]; 4],
 }
 
 impl CameraUniform {
     pub fn new() -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
+            view: cgmath::Matrix4::identity().into(),
+            proj: cgmath::Matrix4::identity().into(),
         }
     }
 
-    pub fn update_view_proj(&mut self, matrix: cgmath::Matrix4<f32>) {
-        self.view_proj = matrix.into();
+    pub fn update_proj(&mut self, matrix: cgmath::Matrix4<f32>) {
+        self.proj = matrix.into();
+    }
+
+    pub fn update_view(&mut self, matrix: cgmath::Matrix4<f32>) {
+        self.view = matrix.into();
     }
 
     pub fn desc() -> wgpu::BindGroupLayoutDescriptor<'static> {
         wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -123,8 +129,9 @@ impl OrbitCamera {
         let pos = cgmath::Point3::from_vec(pos.to_vec() + self.target.to_vec());
 
         let view = cgmath::Matrix4::look_at_rh(pos, self.target, self.up);
-        let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj * view;
-        self.uniform.update_view_proj(projection_matrix);
+        let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj;
+        self.uniform.update_proj(projection_matrix);
+        self.uniform.update_view(view);
         context
             .queue()
             .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
