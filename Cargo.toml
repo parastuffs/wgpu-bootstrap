@@ -1,21 +1,23 @@
 [package]
 name = "wgpu-bootstrap"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
-winit = "0.28"
-env_logger = "0.10"
+winit = "0.30"
+env_logger = "0.11"
 log = "0.4"
-wgpu = "0.17"
+wgpu = "22.0"
 pollster = "0.3"
-bytemuck = { version = "1.12", features = ["derive"] }
+bytemuck = { version = "1.18", features = ["derive"] }
 cgmath = "0.18"
-egui = "0.23"
-egui_wgpu_backend = "0.26"
-egui_winit_platform = "0.20"
+egui = "0.29"
+egui-winit = "0.29"
+egui-wgpu = "0.29"
+egui_wgpu_backend = "0.31"
+egui_winit_platform = "0.24"
 
 [dependencies.image]
-version = "0.24"
+version = "0.25"
 default-features = false
 features = ["png", "jpeg"]

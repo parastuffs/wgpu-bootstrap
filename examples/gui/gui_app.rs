@@ -5,8 +5,8 @@ use wgpu_bootstrap::{
     runner::App,
     util::orbit_camera::{CameraUniform, OrbitCamera},
     wgpu::{self, util::DeviceExt, TextureView},
-    winit::event::Event,
 };
+use winit::event::{DeviceEvent, WindowEvent};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -212,6 +212,7 @@ impl GuiApp {
                         module: &shader,
                         entry_point: "vs_main",
                         buffers: &[Vertex::desc()],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -221,6 +222,7 @@ impl GuiApp {
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -247,6 +249,7 @@ impl GuiApp {
                         alpha_to_coverage_enabled: false,
                     },
                     multiview: None,
+                    cache: None,
                 });
 
         let mut camera = OrbitCamera::new(
@@ -273,8 +276,12 @@ impl GuiApp {
 }
 
 impl App for GuiApp {
-    fn input(&mut self, context: &mut Context, event: &Event<()>) {
-        self.camera.process_events(context, event)
+    fn window_event(&mut self, context: &mut Context, event: &WindowEvent) -> bool {
+        return self.camera.window_event(context, event);
+    }
+
+    fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
+        return self.camera.device_event(context, event);
     }
 
     fn render(&mut self, context: &mut Context, view: &TextureView) {
@@ -298,17 +305,19 @@ impl App for GuiApp {
                             b: 1.0,
                             a: 1.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: context.depth_texture_view(),
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
             });
 
             render_pass.set_pipeline(&self.render_pipeline);

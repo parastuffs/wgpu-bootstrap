@@ -4,9 +4,6 @@ use crate::cube_app::CubeApp;
 use wgpu_bootstrap::runner::Runner;
 
 fn main() {
-    let mut runner = pollster::block_on(Runner::new());
-
-    let app = CubeApp::new(&mut runner.context);
-
-    runner.start(app);
+    let mut runner = Runner::new(Box::new(|context| Box::new(CubeApp::new(context))));
+    pollster::block_on(runner.run());
 }

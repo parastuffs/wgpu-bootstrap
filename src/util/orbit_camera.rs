@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
-use winit::event::{DeviceEvent, ElementState, Event, MouseButton, WindowEvent};
+use winit::event::{DeviceEvent, ElementState, MouseButton, WindowEvent};
 
 use crate::context::Context;
 
@@ -214,18 +214,12 @@ impl OrbitCamera {
         &self.bind_group
     }
 
-    pub fn process_events(&mut self, context: &mut Context, event: &Event<()>) {
-        #[allow(deprecated)]
+    pub fn window_event(&mut self, _context: &mut Context, event: &WindowEvent) -> bool {
         match event {
-            Event::WindowEvent {
-                window_id: _,
-                event:
-                    WindowEvent::MouseInput {
-                        device_id: _,
-                        state,
-                        button,
-                        modifiers: _,
-                    },
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
             } => {
                 if *button == MouseButton::Left {
                     match state {
@@ -233,15 +227,50 @@ impl OrbitCamera {
                         ElementState::Released => self.stop_orbiting(),
                     }
                 }
+                true
             }
-            Event::DeviceEvent {
-                device_id: _,
-                event: DeviceEvent::MouseMotion { delta },
-            } => {
-                let delta = (delta.0 as f32, delta.1 as f32);
-                self.delta_angles(context, delta);
-            }
-            _ => (),
+            _ => false,
         }
     }
+
+    pub fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                let delta = (delta.0 as f32, delta.1 as f32);
+                self.delta_angles(context, delta);
+                true
+            }
+            _ => true,
+        }
+    }
+
+    // pub fn process_events(&mut self, context: &mut Context, event: &Event<()>) {
+    //     #[allow(deprecated)]
+    //     match event {
+    //         Event::WindowEvent {
+    //             window_id: _,
+    //             event:
+    //                 WindowEvent::MouseInput {
+    //                     device_id: _,
+    //                     state,
+    //                     button,
+    //                 },
+    //         } => {
+    //             if *button == MouseButton::Left {
+    //                 match state {
+    //                     ElementState::Pressed => self.start_orbiting(),
+    //                     ElementState::Released => self.stop_orbiting(),
+    //                 }
+    //             }
+    //         }
+    //         Event::DeviceEvent {
+    //             device_id: _,
+    //             event: DeviceEvent::MouseMotion { delta },
+    //         } => {
+    //             let delta = (delta.0 as f32, delta.1 as f32);
+    //             self.delta_angles(context, delta);
+    //         }
+    //         _ => (),
+    //     }
+    // }
 }

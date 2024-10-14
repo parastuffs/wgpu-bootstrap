@@ -9,6 +9,7 @@ use wgpu_bootstrap::{
     wgpu::{self, util::DeviceExt, TextureView},
     winit,
 };
+use winit::event::{DeviceEvent, WindowEvent};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -148,6 +149,7 @@ impl InstanceApp {
                         module: &shader,
                         entry_point: "vs_main",
                         buffers: &[Vertex::desc(), Instance::desc()],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &shader,
@@ -157,6 +159,7 @@ impl InstanceApp {
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
+                        compilation_options: wgpu::PipelineCompilationOptions::default(),
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
@@ -183,6 +186,7 @@ impl InstanceApp {
                         alpha_to_coverage_enabled: false,
                     },
                     multiview: None,
+                    cache: None,
                 });
 
         let aspect = (context.config().width as f32) / (context.config().height as f32);
@@ -204,9 +208,14 @@ impl InstanceApp {
 }
 
 impl App for InstanceApp {
-    fn input(&mut self, context: &mut Context, event: &winit::event::Event<()>) {
-        self.camera.process_events(context, event);
+    fn window_event(&mut self, context: &mut Context, event: &WindowEvent) -> bool {
+        return self.camera.window_event(context, event);
     }
+
+    fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
+        return self.camera.device_event(context, event);
+    }
+
     fn render(&mut self, context: &mut Context, view: &TextureView) {
         let mut encoder =
             context
@@ -228,17 +237,19 @@ impl App for InstanceApp {
                             b: 1.0,
                             a: 1.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: context.depth_texture_view(),
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(1.0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
                 }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
