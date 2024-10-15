@@ -127,6 +127,16 @@ impl Context {
             self.config.height = new_size.height;
 
             self.surface.configure(&self.device, &self.config);
+            match self.depth_texture_view {
+                None => {}
+                Some(_) => {
+                    self.depth_texture_view = Some(create_depth_texture(
+                        self.size,
+                        self.depth_format,
+                        self.device(),
+                    ));
+                }
+            };
 
             println!("Resized to {:?} from state!", new_size);
         }

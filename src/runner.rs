@@ -93,6 +93,7 @@ impl ApplicationHandler for Runner {
                         }
                         WindowEvent::Resized(physical_size) => {
                             context.resize(physical_size);
+                            app.resize(context, physical_size);
                         }
                         WindowEvent::RedrawRequested => {
                             let now = Instant::now();
@@ -144,6 +145,8 @@ impl ApplicationHandler for Runner {
                             //     .render_pass()
                             //     .remove_textures(tdelta)
                             //     .expect("remove texture ok");
+
+                            egui_layer.cleanup();
                         }
                         _ => {}
                     }

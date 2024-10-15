@@ -8,6 +8,7 @@ use winit::event::WindowEvent;
 pub struct EguiLayer {
     platform: Platform,
     render_pass: RenderPass,
+    tdelta: Option<egui::TexturesDelta>,
 }
 
 impl EguiLayer {
@@ -25,6 +26,7 @@ impl EguiLayer {
         Self {
             platform,
             render_pass,
+            tdelta: None,
         }
     }
 
@@ -93,5 +95,16 @@ impl EguiLayer {
             .unwrap();
 
         context.queue().submit(std::iter::once(encoder.finish()));
+
+        self.tdelta = Some(tdelta);
+    }
+
+    pub fn cleanup(&mut self) {
+        let tdelta = self.tdelta.take();
+        if let Some(tdelta) = tdelta {
+            self.render_pass()
+                .remove_textures(tdelta)
+                .expect("remove texture ok");
+        }
     }
 }
