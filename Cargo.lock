@@ -2266,7 +2266,7 @@ dependencies = [
 
 [[package]]
 name = "wgpu-bootstrap"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytemuck",
  "cgmath",
