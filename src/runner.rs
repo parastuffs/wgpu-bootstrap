@@ -10,9 +10,6 @@ use winit::{
 
 pub trait App {
     #[allow(unused_variables)]
-    fn build(&mut self, context: &mut Context) {}
-
-    #[allow(unused_variables)]
     fn render(&mut self, context: &mut Context, view: &TextureView) {}
 
     #[allow(unused_variables)]
