@@ -1,516 +1,156 @@
-use crate::{context::Context, egui_layer::EguiLayer};
-use std::time::Instant;
-use wgpu::TextureView;
-use winit::{
-    application::ApplicationHandler,
-    event::{DeviceEvent, WindowEvent},
-    event_loop::{ActiveEventLoop, EventLoop},
-    window::{Window, WindowId},
+use eframe::{
+    egui::{self, InputState},
+    egui_wgpu::{self, CallbackResources, CallbackTrait},
+    wgpu, CreationContext,
 };
+use std::time::Instant;
 
 pub trait App {
-    #[allow(unused_variables)]
-    fn render(&mut self, context: &mut Context, view: &TextureView) {}
+    fn render(&self, _render_pass: &mut wgpu::RenderPass<'_>) {}
 
-    #[allow(unused_variables)]
-    fn render_gui(&mut self, context: &mut Context, egui_context: &egui::Context) {}
+    fn render_gui(&mut self, _ctx: &egui::Context, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
 
-    #[allow(unused_variables)]
-    fn update(&mut self, context: &mut Context, delta_time: f32) {}
+    fn update(&mut self, _delta_time: f32, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
 
-    #[allow(unused_variables)]
-    fn window_event(&mut self, context: &mut Context, event: &WindowEvent) -> bool {
-        return false;
+    fn input(&mut self, _input: InputState, _device: &wgpu::Device, _queue: &wgpu::Queue) {}
+
+    fn resize(
+        &mut self,
+        _new_width: i32,
+        _new_height: i32,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+    ) {
     }
-
-    #[allow(unused_variables)]
-    fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
-        return false;
-    }
-
-    #[allow(unused_variables)]
-    fn resize(&mut self, context: &mut Context, new_size: winit::dpi::PhysicalSize<u32>) {}
 }
 
 pub struct Runner {
-    context: Option<Context>,
-    egui_layer: Option<EguiLayer>,
-    app_creator: Option<Box<dyn FnOnce(&mut Context) -> Box<dyn App>>>,
-    app: Option<Box<dyn App>>,
-    start_time: Instant,
-    last: Option<Instant>,
+    app_creator: Option<Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App + Send + Sync>>>,
 }
 
 impl Runner {
-    pub fn new(app_creator: Box<dyn FnOnce(&mut Context) -> Box<dyn App>>) -> Self {
+    pub fn new(
+        app_creator: Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App + Send + Sync>>,
+    ) -> Self {
         Self {
-            context: None,
-            egui_layer: None,
             app_creator: Some(app_creator),
-            app: None,
-            start_time: Instant::now(),
-            last: None,
         }
     }
 
     pub async fn run(&mut self) {
-        let event_loop = EventLoop::new().unwrap();
-        let _ = event_loop.run_app(self);
+        let native_options = eframe::NativeOptions::default();
+        let _ = eframe::run_native(
+            "My egui App",
+            native_options,
+            Box::new(|cc| {
+                Ok(Box::new(EframeApp::new(
+                    cc,
+                    self.app_creator.take().unwrap(),
+                )))
+            }),
+        );
     }
 }
 
-impl ApplicationHandler for Runner {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = event_loop
-            .create_window(Window::default_attributes().with_title("Game of life"))
-            .unwrap();
-        self.context = Some(Context::new(window));
-        self.egui_layer = Some(EguiLayer::new(self.context.as_mut().unwrap()));
-        let app_creator = self.app_creator.take();
-        self.app = Some((app_creator.unwrap())(self.context.as_mut().unwrap()));
-    }
+struct EframeApp {
+    window_width: i32,
+    window_height: i32,
+    last: Option<Instant>,
+}
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        let context = self.context.as_mut().unwrap();
-        let window = context.window();
-        let app = self.app.as_mut().unwrap();
-        let egui_layer = self.egui_layer.as_mut().unwrap();
+impl EframeApp {
+    fn new(
+        cc: &eframe::CreationContext<'_>,
+        app_creator: Box<dyn FnOnce(&CreationContext<'_>) -> Box<dyn App + Send + Sync>>,
+    ) -> Self {
+        let wgpu_render_state = cc.wgpu_render_state.as_ref().unwrap();
 
-        if window.id() == window_id {
-            if !egui_layer.window_event(&event) {
-                if !app.window_event(context, &event) {
-                    match event {
-                        WindowEvent::CloseRequested => {
-                            event_loop.exit();
-                        }
-                        WindowEvent::Resized(physical_size) => {
-                            context.resize(physical_size);
-                            app.resize(context, physical_size);
-                        }
-                        WindowEvent::RedrawRequested => {
-                            let now = Instant::now();
-                            let delta_time = match self.last {
-                                Some(last) => now.duration_since(last).as_secs_f32(),
-                                None => 0.0,
-                            };
-                            self.last = Some(now);
+        wgpu_render_state
+            .renderer
+            .write()
+            .callback_resources
+            .insert(app_creator(cc));
 
-                            egui_layer
-                                .update_time(now.duration_since(self.start_time).as_secs_f64());
-
-                            app.update(context, delta_time);
-
-                            let output = context.surface().get_current_texture();
-
-                            let frame = match output {
-                                Ok(texture) => texture,
-                                // Reconfigure the surface if lost
-                                Err(wgpu::SurfaceError::Lost) => {
-                                    let size = *context.size();
-                                    context.resize(size);
-                                    return;
-                                }
-                                // The system is out of memory, we should probably quit
-                                Err(wgpu::SurfaceError::OutOfMemory) => {
-                                    eprintln!("Out Of Memory");
-                                    event_loop.exit();
-                                    return;
-                                }
-                                // All other errors (Outdated, Timeout) should be resolved by the next frame
-                                Err(e) => {
-                                    eprintln!("{:?}", e);
-                                    return;
-                                }
-                            };
-
-                            let view = frame
-                                .texture
-                                .create_view(&wgpu::TextureViewDescriptor::default());
-
-                            app.render(context, &view);
-
-                            egui_layer.render(context, &view, app);
-
-                            frame.present();
-
-                            // egui_layer
-                            //     .render_pass()
-                            //     .remove_textures(tdelta)
-                            //     .expect("remove texture ok");
-
-                            egui_layer.cleanup();
-                        }
-                        _ => {}
-                    }
-                }
-            }
+        Self {
+            window_width: cc.egui_ctx.screen_rect().width() as i32,
+            window_height: cc.egui_ctx.screen_rect().height() as i32,
+            last: None,
         }
     }
+}
 
-    fn device_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _device_id: winit::event::DeviceId,
-        event: DeviceEvent,
-    ) {
-        let context = self.context.as_mut().unwrap();
-        let app = self.app.as_mut().unwrap();
+impl eframe::App for EframeApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let wgpu_render_state = frame.wgpu_render_state().unwrap();
+        let device = wgpu_render_state.device.clone();
+        let queue = wgpu_render_state.queue.clone();
+        let mut writer = wgpu_render_state.renderer.write();
+        let app: &mut Box<dyn App> = writer.callback_resources.get_mut().unwrap();
+        let now = Instant::now();
+        let delta_time = match self.last {
+            Some(last) => now.duration_since(last).as_secs_f32(),
+            None => 0.0,
+        };
+        self.last = Some(now);
+        if ctx.screen_rect().width() as i32 != self.window_width
+            || ctx.screen_rect().height() as i32 != self.window_height
+        {
+            self.window_width = ctx.screen_rect().width() as i32;
+            self.window_height = ctx.screen_rect().height() as i32;
+            app.resize(
+                self.window_width,
+                self.window_height,
+                device.as_ref(),
+                queue.as_ref(),
+            );
+        }
+        let input = ctx.input(|i| i.clone());
 
-        app.device_event(context, &event);
-    }
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // egui::Frame::canvas(ui.style()).show(ui, |ui| {
+            let response = ui.allocate_response(
+                egui::vec2(ctx.screen_rect().width(), ctx.screen_rect().height()),
+                egui::Sense::click_and_drag(),
+            );
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        let window = self.context.as_ref().unwrap().window();
-        window.request_redraw();
+            app.input(input, device.as_ref(), queue.as_ref());
+
+            ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                response.rect,
+                WgpuCallback { delta_time },
+            ));
+            // });
+        });
+
+        app.render_gui(ctx, device.as_ref(), queue.as_ref());
     }
 }
 
-// impl ApplicationHandler for Runner {
-//     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-//         self.window = Some(
-//             event_loop
-//                 .create_window(Window::default_attributes())
-//                 .unwrap(),
-//         );
-//     }
-//
-//     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
-//         match event {
-//             WindowEvent::CloseRequested => {
-//                 println!("The close button was pressed; stopping");
-//                 event_loop.exit();
-//             }
-//             WindowEvent::RedrawRequested => {
-//                 // Redraw the application.
-//                 //
-//                 // It's preferable for applications that do not render continuously to render in
-//                 // this event rather than in AboutToWait, since rendering in here allows
-//                 // the program to gracefully handle redraws requested by the OS.
-//
-//                 // Draw.
-//
-//                 // Queue a RedrawRequested event.
-//                 //
-//                 // You only need to call this if you've determined that you need to redraw in
-//                 // applications which do not always need to. Applications that redraw continuously
-//                 // can render here instead.
-//                 self.window.as_ref().unwrap().request_redraw();
-//             }
-//             _ => (),
-//         }
-//     }
-// }
+struct WgpuCallback {
+    delta_time: f32,
+}
 
-// pub async fn start_old(mut app: impl App + 'static) {
-//     env_logger::init();
-//     let event_loop = EventLoop::new().unwrap();
-//     let window = WindowBuilder::new().build(&event_loop).unwrap();
-//     let context = Context::new(&window).await;
-//
-//     let mut platform = Platform::new(PlatformDescriptor {
-//         physical_width: context.size().width,
-//         physical_height: context.size().height,
-//         scale_factor: context.window().scale_factor(),
-//         font_definitions: FontDefinitions::default(),
-//         style: Default::default(),
-//     });
-//
-//     // We use the egui_wgpu_backend crate as the render backend.
-//     let mut egui_rpass = RenderPass::new(context.device(), context.config().format, 1);
-//
-//     let start_time = Instant::now();
-//     let mut last: Option<Instant> = None;
-//     event_loop.run(move |event, control_flow| {
-//         control_flow.set_poll();
-//
-//         match event {
-//             Event::WindowEvent {
-//                 ref event,
-//                 window_id,
-//             } if window_id == window.id() => {
-//                 match event {
-//                     WindowEvent::CloseRequested => {
-//                         println!("The close button was pressed; stopping");
-//                         control_flow.exit();
-//                     }
-//                     WindowEvent::Resized(physical_size) => {
-//                         // Hack for MacOS 14 Bug
-//                         if physical_size.width < u32::MAX {
-//                             context.resize(*physical_size);
-//                             app.resize(&mut context, *physical_size);
-//                         }
-//                     }
-//                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-//                         println!("Scale Factor Changed");
-//                         context.resize(**new_inner_size);
-//                         app.resize(&mut context, **new_inner_size);
-//                     }
-//                     _ => {}
-//                 }
-//             }
-//             Event::AboutToWait => {
-//                 let now = Instant::now();
-//                 let delta_time = match last {
-//                     Some(last) => now.duration_since(last).as_secs_f32(),
-//                     None => 0.0,
-//                 };
-//                 last = Some(now);
-//                 platform.update_time(now.duration_since(start_time).as_secs_f64());
-//
-//                 app.update(&mut context, delta_time);
-//                 context.window().request_redraw();
-//             }
-//             Event::WindowEvent {
-//                 event: WindowEvent::RedrawRequested,
-//                 ..
-//             } => {
-//                 let output = context.surface().get_current_texture();
-//
-//                 let frame = match output {
-//                     Ok(texture) => texture,
-//                     // Reconfigure the surface if lost
-//                     Err(wgpu::SurfaceError::Lost) => {
-//                         context.resize(*context.size());
-//                         return;
-//                     }
-//                     // The system is out of memory, we should probably quit
-//                     Err(wgpu::SurfaceError::OutOfMemory) => {
-//                         eprintln!("Out Of Memory");
-//                         control_flow.exit();
-//                         return;
-//                     }
-//                     // All other errors (Outdated, Timeout) should be resolved by the next frame
-//                     Err(e) => {
-//                         eprintln!("{:?}", e);
-//                         return;
-//                     }
-//                 };
-//
-//                 let view = frame
-//                     .texture
-//                     .create_view(&wgpu::TextureViewDescriptor::default());
-//
-//                 app.render(&mut context, &view);
-//
-//                 // platform.update_time(start_time.elapsed().as_secs_f64());
-//
-//                 // Begin to draw the UI frame.
-//                 platform.begin_frame();
-//
-//                 app.render_gui(&mut context, &platform.context());
-//
-//                 let full_output = platform.end_frame(Some(context.window()));
-//                 let paint_jobs = platform
-//                     .context()
-//                     .tessellate(full_output.shapes, full_output.pixels_per_point);
-//
-//                 let mut encoder =
-//                     context
-//                         .device()
-//                         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-//                             label: Some("egui encoder"),
-//                         });
-//
-//                 // Upload all resources for the GPU.
-//                 let screen_descriptor = ScreenDescriptor {
-//                     physical_width: context.size().width,
-//                     physical_height: context.size().height,
-//                     scale_factor: context.window().scale_factor() as f32,
-//                 };
-//                 let tdelta: egui::TexturesDelta = full_output.textures_delta;
-//                 egui_rpass
-//                     .add_textures(context.device(), context.queue(), &tdelta)
-//                     .expect("add texture ok");
-//                 egui_rpass.update_buffers(
-//                     context.device(),
-//                     context.queue(),
-//                     &paint_jobs,
-//                     &screen_descriptor,
-//                 );
-//
-//                 egui_rpass
-//                     .execute(&mut encoder, &view, &paint_jobs, &screen_descriptor, None)
-//                     .unwrap();
-//
-//                 context.queue().submit(std::iter::once(encoder.finish()));
-//                 frame.present();
-//
-//                 egui_rpass
-//                     .remove_textures(tdelta)
-//                     .expect("remove texture ok");
-//             }
-//             _ => {}
-//         }
-//
-//         platform.handle_event(&event);
-//
-//         if !platform.captures_event(&event) {
-//             app.input(&mut context, &event);
-//         }
-//     });
-// }
+impl CallbackTrait for WgpuCallback {
+    fn prepare(
+        &self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
+        _egui_encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        let resources: &mut Box<dyn App> = resources.get_mut().unwrap();
+        resources.update(self.delta_time, device, queue);
+        Vec::new()
+    }
 
-// pub struct Runner<'a> {
-//     event_loop: EventLoop<()>,
-//     pub context: Context<'a>,
-// }
-//
-// impl<'a> Runner<'a> {
-//     pub async fn new() -> Self {
-//         env_logger::init();
-//         let event_loop = EventLoop::new().unwrap();
-//         let window = WindowBuilder::new().build(&event_loop).unwrap();
-//         let context = Context::new(window).await;
-//
-//         Self {
-//             event_loop,
-//             context,
-//         }
-//     }
-//
-//     pub fn start(mut self, mut app: impl App + 'static) {
-//         let mut platform = Platform::new(PlatformDescriptor {
-//             physical_width: self.context.size().width,
-//             physical_height: self.context.size().height,
-//             scale_factor: self.context.window().scale_factor(),
-//             font_definitions: FontDefinitions::default(),
-//             style: Default::default(),
-//         });
-//
-//         // We use the egui_wgpu_backend crate as the render backend.
-//         let mut egui_rpass =
-//             RenderPass::new(self.context.device(), self.context.config().format, 1);
-//
-//         let start_time = Instant::now();
-//         let mut last: Option<Instant> = None;
-//         self.event_loop.run(move |event, _, control_flow| {
-//             control_flow.set_poll();
-//
-//             match event {
-//                 Event::WindowEvent {
-//                     ref event,
-//                     window_id,
-//                 } if window_id == self.context.window().id() => {
-//                     match event {
-//                         WindowEvent::CloseRequested => {
-//                             println!("The close button was pressed; stopping");
-//                             control_flow.set_exit();
-//                         }
-//                         WindowEvent::Resized(physical_size) => {
-//                             // Hack for MacOS 14 Bug
-//                             if physical_size.width < u32::MAX {
-//                                 self.context.resize(*physical_size);
-//                                 app.resize(&mut self.context, *physical_size);
-//                             }
-//                         }
-//                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-//                             println!("Scale Factor Changed");
-//                             self.context.resize(**new_inner_size);
-//                             app.resize(&mut self.context, **new_inner_size);
-//                         }
-//                         _ => {}
-//                     }
-//                 }
-//                 Event::MainEventsCleared => {
-//                     let now = Instant::now();
-//                     let delta_time = match last {
-//                         Some(last) => now.duration_since(last).as_secs_f32(),
-//                         None => 0.0,
-//                     };
-//                     last = Some(now);
-//                     platform.update_time(now.duration_since(start_time).as_secs_f64());
-//
-//                     app.update(&mut self.context, delta_time);
-//                     self.context.window().request_redraw();
-//                 }
-//                 Event::RedrawRequested(_) => {
-//                     let output = self.context.surface().get_current_texture();
-//
-//                     let frame = match output {
-//                         Ok(texture) => texture,
-//                         // Reconfigure the surface if lost
-//                         Err(wgpu::SurfaceError::Lost) => {
-//                             self.context.resize(*self.context.size());
-//                             return;
-//                         }
-//                         // The system is out of memory, we should probably quit
-//                         Err(wgpu::SurfaceError::OutOfMemory) => {
-//                             eprintln!("Out Of Memory");
-//                             control_flow.set_exit();
-//                             return;
-//                         }
-//                         // All other errors (Outdated, Timeout) should be resolved by the next frame
-//                         Err(e) => {
-//                             eprintln!("{:?}", e);
-//                             return;
-//                         }
-//                     };
-//
-//                     let view = frame
-//                         .texture
-//                         .create_view(&wgpu::TextureViewDescriptor::default());
-//
-//                     app.render(&mut self.context, &view);
-//
-//                     // platform.update_time(start_time.elapsed().as_secs_f64());
-//
-//                     // Begin to draw the UI frame.
-//                     platform.begin_frame();
-//
-//                     app.render_gui(&mut self.context, &platform.context());
-//
-//                     let full_output = platform.end_frame(Some(self.context.window()));
-//                     let paint_jobs = platform.context().tessellate(full_output.shapes);
-//
-//                     let mut encoder = self.context.device().create_command_encoder(
-//                         &wgpu::CommandEncoderDescriptor {
-//                             label: Some("egui encoder"),
-//                         },
-//                     );
-//
-//                     // Upload all resources for the GPU.
-//                     let screen_descriptor = ScreenDescriptor {
-//                         physical_width: self.context.size().width,
-//                         physical_height: self.context.size().height,
-//                         scale_factor: self.context.window().scale_factor() as f32,
-//                     };
-//                     let tdelta: egui::TexturesDelta = full_output.textures_delta;
-//                     egui_rpass
-//                         .add_textures(self.context.device(), self.context.queue(), &tdelta)
-//                         .expect("add texture ok");
-//                     egui_rpass.update_buffers(
-//                         self.context.device(),
-//                         self.context.queue(),
-//                         &paint_jobs,
-//                         &screen_descriptor,
-//                     );
-//
-//                     egui_rpass
-//                         .execute(&mut encoder, &view, &paint_jobs, &screen_descriptor, None)
-//                         .unwrap();
-//
-//                     self.context
-//                         .queue()
-//                         .submit(std::iter::once(encoder.finish()));
-//                     frame.present();
-//
-//                     egui_rpass
-//                         .remove_textures(tdelta)
-//                         .expect("remove texture ok");
-//                 }
-//                 _ => {}
-//             }
-//
-//             platform.handle_event(&event);
-//
-//             if !platform.captures_event(&event) {
-//                 app.input(&mut self.context, &event);
-//             }
-//         });
-//     }
-// }
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        render_pass: &mut wgpu::RenderPass<'static>,
+        resources: &CallbackResources,
+    ) {
+        let resources: &Box<dyn App> = resources.get().unwrap();
+        resources.render(render_pass);
+    }
+}
