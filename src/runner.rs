@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, InputState},
+    egui::{self, InputState, Visuals},
     egui_wgpu::{self, depth_format_from_bits, CallbackResources, CallbackTrait},
     wgpu,
 };
@@ -52,6 +52,7 @@ pub struct Runner {
     app_name: String,
     width: u32,
     height: u32,
+    bg_color: egui::Color32,
     depth_buffer: u8,
     stencil_buffer: u8,
     app_creator: Option<Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>>,
@@ -62,6 +63,7 @@ impl Runner {
         app_name: &str,
         width: u32,
         height: u32,
+        bg_color: egui::Color32,
         depth_buffer: u8,
         stencil_buffer: u8,
         app_creator: Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>,
@@ -72,6 +74,7 @@ impl Runner {
             app_name: String::from(app_name),
             width,
             height,
+            bg_color,
             app_creator: Some(app_creator),
             depth_buffer,
             stencil_buffer,
@@ -97,6 +100,7 @@ impl Runner {
                     cc,
                     self.width,
                     self.height,
+                    self.bg_color,
                     depth_stencil_format,
                     self.app_creator.take().unwrap(),
                 )))
@@ -108,6 +112,7 @@ impl Runner {
 struct EframeApp {
     window_width: u32,
     window_height: u32,
+    bg_color: egui::Color32,
     depth_stencil_format: Option<wgpu::TextureFormat>,
     last: Option<Instant>,
     app: Arc<dyn App + Send + Sync>,
@@ -118,6 +123,7 @@ impl EframeApp {
         cc: &eframe::CreationContext<'_>,
         width: u32,
         height: u32,
+        bg_color: egui::Color32,
         depth_stencil_format: Option<wgpu::TextureFormat>,
         app_creator: Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>,
     ) -> Self {
@@ -134,15 +140,10 @@ impl EframeApp {
             depth_stencil_format,
         };
 
-        // wgpu_render_state
-        //     .renderer
-        //     .write()
-        //     .callback_resources
-        //     .insert(app_creator(&context));
-
         Self {
             window_width: width,
             window_height: height,
+            bg_color,
             depth_stencil_format,
             last: None,
             app: app_creator(&context),
@@ -198,22 +199,29 @@ impl eframe::App for EframeApp {
             .unwrap()
             .render_gui(ctx, &context);
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // egui::Frame::canvas(ui.style()).show(ui, |ui| {
-            let response = ui.allocate_space(egui::vec2(
-                ctx.screen_rect().width(),
-                ctx.screen_rect().height(),
-            ));
+        let container = egui::containers::Frame::default().fill(self.bg_color);
+        egui::CentralPanel::default()
+            .frame(container)
+            .show(ctx, |ui| {
+                // egui::Frame::canvas(ctx.style()).show(ctx, |ui| {
+                let response = ui.allocate_space(egui::vec2(
+                    ctx.screen_rect().width(),
+                    ctx.screen_rect().height(),
+                ));
 
-            ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-                response.1,
-                WgpuCallback {
-                    app: self.app.clone(),
-                },
-            ));
-            // });
-        });
+                ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+                    response.1,
+                    WgpuCallback {
+                        app: self.app.clone(),
+                    },
+                ));
+                // });
+            });
         ctx.request_repaint();
+    }
+
+    fn clear_color(&self, _visuals: &Visuals) -> [f32; 4] {
+        return [0.9, 0.4, 0.4, 1.0];
     }
 }
 
