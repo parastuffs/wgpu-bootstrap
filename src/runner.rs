@@ -213,6 +213,7 @@ impl eframe::App for EframeApp {
             ));
             // });
         });
+        ctx.request_repaint();
     }
 }
 
