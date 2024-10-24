@@ -6,6 +6,8 @@ use eframe::{
     wgpu::{self, util::DeviceExt},
 };
 
+use crate::runner::Context;
+
 #[rustfmt::skip]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -77,29 +79,28 @@ pub struct OrbitCamera {
 }
 
 impl OrbitCamera {
-    pub fn new(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        fovy: f32,
-        aspect: f32,
-        near: f32,
-        far: f32,
-    ) -> Self {
+    pub fn new(context: &Context, fovy: f32, aspect: f32, near: f32, far: f32) -> Self {
         let uniform = CameraUniform::new();
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let bind_group_layout = device.create_bind_group_layout(&CameraUniform::desc());
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("Camera Bind Group"),
-        });
+        let buffer = context
+            .device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[uniform]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
+        let bind_group_layout = context
+            .device()
+            .create_bind_group_layout(&CameraUniform::desc());
+        let bind_group = context
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                layout: &bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                }],
+                label: Some("Camera Bind Group"),
+            });
 
         let mut res = Self {
             fovy,
@@ -114,11 +115,11 @@ impl OrbitCamera {
             bind_group,
             orbiting: false,
         };
-        res.update(queue);
+        res.update(context);
         res
     }
 
-    pub fn update(&mut self, queue: &wgpu::Queue) {
+    pub fn update(&mut self, context: &Context) {
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.near, self.far);
 
         let pos = cgmath::point3(
@@ -133,7 +134,9 @@ impl OrbitCamera {
         let projection_matrix = OPENGL_TO_WGPU_MATRIX * proj;
         self.uniform.update_proj(projection_matrix);
         self.uniform.update_view(view);
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
+        context
+            .queue()
+            .write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
     }
 
     pub fn set_target(&mut self, target: cgmath::Point3<f32>) -> &mut Self {
@@ -199,13 +202,13 @@ impl OrbitCamera {
         self.orbiting = false;
     }
 
-    pub fn delta_angles(&mut self, queue: &wgpu::Queue, angles: (f32, f32)) {
+    pub fn delta_angles(&mut self, context: &Context, angles: (f32, f32)) {
         if self.orbiting {
             let longitude = self.longitude();
             let latitude = self.latitude();
             self.set_longitude(longitude + 0.01 * angles.0)
                 .set_latitude(latitude + 0.01 * angles.1)
-                .update(queue);
+                .update(context);
         }
     }
 
@@ -213,7 +216,7 @@ impl OrbitCamera {
         &self.bind_group
     }
 
-    pub fn input(&mut self, input: egui::InputState, _device: &wgpu::Device, queue: &wgpu::Queue) {
+    pub fn input(&mut self, input: egui::InputState, context: &Context) {
         if input.pointer.button_down(PointerButton::Primary) {
             self.start_orbiting();
         }
@@ -222,37 +225,7 @@ impl OrbitCamera {
         }
         let delta = input.pointer.motion();
         if let Some(delta) = delta {
-            self.delta_angles(queue, (delta.x, delta.y));
+            self.delta_angles(context, (delta.x, delta.y));
         }
     }
-
-    // pub fn window_event(&mut self, _context: &mut Context, event: &WindowEvent) -> bool {
-    //     match event {
-    //         WindowEvent::MouseInput {
-    //             device_id: _,
-    //             state,
-    //             button,
-    //         } => {
-    //             if *button == MouseButton::Left {
-    //                 match state {
-    //                     ElementState::Pressed => self.start_orbiting(),
-    //                     ElementState::Released => self.stop_orbiting(),
-    //                 }
-    //             }
-    //             true
-    //         }
-    //         _ => false,
-    //     }
-    // }
-    //
-    // pub fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
-    //     match event {
-    //         DeviceEvent::MouseMotion { delta } => {
-    //             let delta = (delta.0 as f32, delta.1 as f32);
-    //             self.delta_angles(context, delta);
-    //             true
-    //         }
-    //         _ => true,
-    //     }
-    // }
 }

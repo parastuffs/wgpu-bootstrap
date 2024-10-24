@@ -1,7 +1,6 @@
 use wgpu_bootstrap::{
-    context::Context,
-    runner::App,
-    wgpu::{self, util::DeviceExt, TextureView},
+    wgpu::{self, util::DeviceExt},
+    App, Context,
 };
 
 #[repr(C)]
@@ -33,9 +32,7 @@ pub struct TriangleApp {
 }
 
 impl TriangleApp {
-    pub fn new(context: &mut Context) -> Self {
-        context.window().set_title("Triangle App");
-
+    pub fn new(context: &Context) -> Self {
         let vertex_buffer =
             context
                 .device()
@@ -96,7 +93,7 @@ impl TriangleApp {
                         module: &shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: context.config().format,
+                            format: context.format(),
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
@@ -133,41 +130,9 @@ impl TriangleApp {
 }
 
 impl App for TriangleApp {
-    fn render(&mut self, context: &mut Context, view: &TextureView) {
-        let mut encoder =
-            context
-                .device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 1.0,
-                            g: 1.0,
-                            b: 1.0,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..self.num_vertices, 0..1);
-        }
-
-        // submit will accept anything that implements IntoIter
-        context.queue().submit(std::iter::once(encoder.finish()));
+    fn render(&self, render_pass: &mut wgpu::RenderPass<'_>) {
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.draw(0..self.num_vertices, 0..1);
     }
 }

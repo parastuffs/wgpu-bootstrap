@@ -1,13 +1,11 @@
 use wgpu_bootstrap::{
-    context::Context,
-    runner::App,
     util::{
         geometry::{compute_line_list, icosphere},
         orbit_camera::{CameraUniform, OrbitCamera},
     },
-    wgpu::{util::DeviceExt, TextureView},
+    wgpu::{self, util::DeviceExt},
+    App, Context,
 };
-use winit::event::{DeviceEvent, WindowEvent};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -46,9 +44,7 @@ pub struct WireframeApp {
 }
 
 impl WireframeApp {
-    pub fn new(context: &mut Context) -> Self {
-        context.window().set_title("Wireframe App");
-
+    pub fn new(context: &Context) -> Self {
         let (positions, indices) = icosphere(3);
 
         let vertices: Vec<Vertex> = positions
@@ -116,7 +112,7 @@ impl WireframeApp {
                         module: &shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: context.config().format,
+                            format: context.format(),
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
@@ -135,7 +131,7 @@ impl WireframeApp {
                         conservative: false,
                     },
                     depth_stencil: Some(wgpu::DepthStencilState {
-                        format: *context.depth_format(),
+                        format: context.depth_stencil_format(),
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: wgpu::StencilState::default(),
@@ -150,7 +146,7 @@ impl WireframeApp {
                     cache: None,
                 });
 
-        let aspect = (context.config().width as f32) / (context.config().height as f32);
+        let aspect = context.size().x / context.size().y;
         let mut camera = OrbitCamera::new(context, 45.0, aspect, 0.1, 100.0);
         camera
             .set_polar(cgmath::point3(3.0, 0.0, 0.0))
@@ -167,58 +163,15 @@ impl WireframeApp {
 }
 
 impl App for WireframeApp {
-    fn window_event(&mut self, context: &mut Context, event: &WindowEvent) -> bool {
-        return self.camera.window_event(context, event);
+    fn input(&mut self, input: eframe::egui::InputState, context: &Context) {
+        self.camera.input(input, context);
     }
 
-    fn device_event(&mut self, context: &mut Context, event: &DeviceEvent) -> bool {
-        return self.camera.device_event(context, event);
-    }
-
-    fn render(&mut self, context: &mut Context, view: &TextureView) {
-        let mut encoder =
-            context
-                .device()
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 1.0,
-                            g: 1.0,
-                            b: 1.0,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: context.depth_texture_view(),
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
-        }
-
-        // submit will accept anything that implements IntoIter
-        context.queue().submit(std::iter::once(encoder.finish()));
+    fn render(&self, render_pass: &mut wgpu::RenderPass<'_>) {
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
+        render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
     }
 }
