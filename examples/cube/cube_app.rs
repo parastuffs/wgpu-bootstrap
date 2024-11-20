@@ -1,5 +1,5 @@
 use wgpu_bootstrap::{
-    cgmath,
+    cgmath, egui,
     util::orbit_camera::{CameraUniform, OrbitCamera},
     wgpu::{self, util::DeviceExt},
     App, Context,
@@ -269,7 +269,7 @@ impl CubeApp {
 }
 
 impl App for CubeApp {
-    fn input(&mut self, input: eframe::egui::InputState, context: &Context) {
+    fn input(&mut self, input: egui::InputState, context: &Context) {
         self.camera.input(input, context);
     }
 
