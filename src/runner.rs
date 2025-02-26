@@ -4,6 +4,7 @@ use eframe::{
     wgpu,
 };
 use std::{sync::Arc, time::Instant};
+use pollster::block_on;
 
 #[allow(dead_code)]
 pub struct Context<'a> {
@@ -55,6 +56,7 @@ pub struct Runner {
     bg_color: egui::Color32,
     depth_buffer: u8,
     stencil_buffer: u8,
+    limits: wgpu::Limits,
     app_creator: Option<Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>>,
 }
 
@@ -66,6 +68,7 @@ impl Runner {
         bg_color: egui::Color32,
         depth_buffer: u8,
         stencil_buffer: u8,
+        limits: wgpu::Limits,
         app_creator: Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>,
     ) -> Self {
         env_logger::init();
@@ -78,6 +81,7 @@ impl Runner {
             app_creator: Some(app_creator),
             depth_buffer,
             stencil_buffer,
+            limits,
         }
     }
 
@@ -128,8 +132,16 @@ impl EframeApp {
         app_creator: Box<dyn FnOnce(&Context) -> Arc<dyn App + Send + Sync>>,
     ) -> Self {
         let wgpu_render_state = cc.wgpu_render_state.as_ref().unwrap();
-        let device = wgpu_render_state.device.as_ref();
-        let queue = wgpu_render_state.queue.as_ref();
+        let adapter = wgpu_render_state.adapter.clone();
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                lavel: Some("Custom Device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: runner.limits,
+                memory_hints: Default::default(),
+            },
+            None,
+        ))
+        .expect("Failed to create WGPU device with correct limits");
         let format = wgpu_render_state.target_format;
 
         let context = Context {
